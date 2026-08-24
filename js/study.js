@@ -279,13 +279,13 @@ function renderExamDone() {
       ${forgotten ? `<p class="muted small" style="margin-top:14px">${plural(forgotten, 'word was', 'words were')} moved back to Learning.</p>` : ''}
     </div>
     <div class="stack" style="margin-top:16px">
-      ${canContinue ? '<button class="btn btn-big btn-ghost" data-act="continue">Continue learning</button>' : ''}
+      ${canContinue ? '<button class="btn btn-big btn-ghost" data-act="practice">Practice words</button>' : ''}
       <button class="btn btn-big btn-primary" data-act="close">Done</button>
     </div>
   </div>`;
 
   on(inner(), '[data-act="close"]', 'click', close);
-  on(inner(), '[data-act="continue"]', 'click', () => {
+  on(inner(), '[data-act="practice"]', 'click', () => {
     const exit = onClose;
     close();
     startCarousel(learningPool(), { onExit: exit });

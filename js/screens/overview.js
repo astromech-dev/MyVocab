@@ -34,7 +34,8 @@ export function renderOverview(root, rerender, openWords) {
   root.innerHTML = `
     <div class="card today-card">
       <div class="today-count">${stats.learned}</div>
-      <p class="today-label">of ${stats.total} learned</p>
+      <p class="today-label">words learned</p>
+      <p class="tiny muted" style="margin-top:2px">${plural(stats.total, 'word', 'words')} in your vocabulary</p>
       <div class="progressbar" style="margin:16px 0 20px"><i style="width:${learnedPct}%"></i></div>
 
       <div class="tiles">
@@ -45,12 +46,15 @@ export function renderOverview(root, rerender, openWords) {
 
       <div class="btn-row" style="margin-top:20px;align-items:stretch">
         <div style="flex:1 1 150px">
+          <p class="section-title" style="margin:0 0 6px">New words</p>
+          <p class="tiny muted" style="margin-bottom:10px">${stats.new ? `${plural(stats.new, 'word', 'words')} waiting` : 'Nothing new'}</p>
           <button class="btn btn-big btn-primary" data-act="learn-new" ${stats.new ? '' : 'disabled'}>Learn new words</button>
-          <p class="tiny muted center" style="margin-top:8px">${stats.new ? plural(newBatch, 'word', 'words') : 'nothing new'}</p>
+          ${stats.new ? `<p class="tiny muted center" style="margin-top:8px">Start with ${newBatch}</p>` : ''}
         </div>
         <div style="flex:1 1 150px">
-          <button class="btn btn-big btn-primary" data-act="continue" ${pool.length ? '' : 'disabled'}>Continue learning</button>
-          <p class="tiny muted center" style="margin-top:8px">${pool.length ? `${plural(pool.length, 'word', 'words')} in rotation` : 'nothing to review'}</p>
+          <p class="section-title" style="margin:0 0 6px">Practice</p>
+          <p class="tiny muted" style="margin-bottom:10px">${pool.length ? `${plural(pool.length, 'word', 'words')} you're learning` : 'Nothing to practice'}</p>
+          <button class="btn btn-big btn-primary" data-act="practice" ${pool.length ? '' : 'disabled'}>Practice words</button>
         </div>
       </div>
       ${caughtUp ? '<p class="tiny muted center" style="margin-top:16px">All caught up — try an exam, or add more words.</p>' : ''}
@@ -74,9 +78,11 @@ export function renderOverview(root, rerender, openWords) {
     <div class="card">
       ${stats.learned > 0
         ? `<p class="small ink-2">Test how well you remember your learned words.</p>
-           <p class="tiny muted" style="margin-top:4px">${plural(stats.learned, 'learned word', 'learned words')}</p>
+           <p class="tiny muted" style="margin-top:4px">${plural(stats.learned, 'word', 'words')}</p>
            <button class="btn btn-primary" data-act="exam" style="margin-top:12px">Start exam</button>`
-        : `<p class="small ink-2">Learn some words first to unlock the exam.</p>
+        : `<p class="small ink-2">Test how well you remember the words you've learned.</p>
+           <p class="tiny muted" style="margin-top:4px">No learned words yet</p>
+           <p class="small ink-2" style="margin-top:10px">Your first exam will be available once you've learned some words.</p>
            <button class="btn btn-primary" data-act="exam" style="margin-top:12px" disabled>Start exam</button>`}
     </div>
 
@@ -95,7 +101,7 @@ export function renderOverview(root, rerender, openWords) {
   on(root, '[data-act="add"]', 'click', () => openAddWords(rerender));
   on(root, '[data-act="words"]', 'click', (el, e) => { e.preventDefault(); openWords(); });
 
-  on(root, '[data-act="continue"]', 'click', () => {
+  on(root, '[data-act="practice"]', 'click', () => {
     if (!pool.length) return;
     startCarousel(pool, { onExit: rerender });
   });
