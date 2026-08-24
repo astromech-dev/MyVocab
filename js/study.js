@@ -180,10 +180,6 @@ function progress(done, total) {
     </div>`;
 }
 
-function lessonTag(word) {
-  return word.lesson ? `<div class="lesson-tag">${esc(word.lesson)}</div>` : '';
-}
-
 function renderIntro() {
   const word = session.intro[session.introIndex];
   const isLast = session.introIndex === session.intro.length - 1;
@@ -194,10 +190,8 @@ function renderIntro() {
     <p class="center tiny muted" style="margin-bottom:12px">New words — just read them through</p>
     <div class="flash">
       <div class="term">${esc(word.term)}</div>
-      ${word.transcription ? `<div class="translit">${esc(word.transcription)}</div>` : ''}
-      <hr>
+      ${word.transcription ? `<div class="translit">[${esc(word.transcription)}]</div>` : ''}
       <div class="translation">${esc(word.translation)}</div>
-      ${lessonTag(word)}
     </div>
     <div class="answers">
       ${session.introIndex > 0 ? '<button class="btn btn-ghost" data-act="prev">Back</button>' : ''}
@@ -226,14 +220,10 @@ function renderCard() {
        <div class="term">${esc(word.term)}</div>`;
 
   const back = rf
-    ? `<hr>
-       <div class="term" style="font-size:clamp(26px,6vw,38px)">${esc(word.term)}</div>
-       ${word.transcription ? `<div class="translit">${esc(word.transcription)}</div>` : ''}
-       ${lessonTag(word)}`
-    : `<hr>
-       ${word.transcription ? `<div class="translit">${esc(word.transcription)}</div>` : ''}
-       <div class="translation">${esc(word.translation)}</div>
-       ${lessonTag(word)}`;
+    ? `<div class="term" style="font-size:clamp(26px,6vw,38px)">${esc(word.term)}</div>
+       ${word.transcription ? `<div class="translit">[${esc(word.transcription)}]</div>` : ''}`
+    : `${word.transcription ? `<div class="translit">[${esc(word.transcription)}]</div>` : ''}
+       <div class="translation">${esc(word.translation)}</div>`;
 
   const buttons = session.revealed
     ? `<div class="answers">
