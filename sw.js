@@ -1,6 +1,6 @@
 // Offline: cache the app shell on install, serve from cache first.
 // Bump CACHE whenever a file below changes so browsers pick up the new version.
-const CACHE = 'myvocab-v12';
+const CACHE = 'myvocab-v13';
 
 const SHELL = [
   './',
@@ -22,6 +22,9 @@ const SHELL = [
   'icons/icon.svg',
   'icons/icon-192.png',
   'icons/icon-512.png',
+  'icons/favicon-16.png',
+  'icons/favicon-32.png',
+  'icons/favicon-48.png',
 ];
 
 self.addEventListener('install', (event) => {

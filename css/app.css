@@ -56,9 +56,9 @@ h1, h2, h3, p { margin: 0; }
 }
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 16px; padding: 22px 0 14px;
+  gap: 16px; padding: 24px 0 16px;
 }
-.brand-logo { height: 28px; width: auto; display: block; }
+.brand-logo { height: 42px; width: auto; display: block; }
 .screen { padding-top: 8px; }
 
 .deckbar-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
