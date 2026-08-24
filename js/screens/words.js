@@ -1,7 +1,7 @@
 // Words — the whole personal database, with search and simple filters.
 
-import { esc, on, qs } from '../dom.js';
-import { store, lessons, counts } from '../store.js';
+import { esc, on, qs, toast } from '../dom.js';
+import { store, lessons, counts, deleteWords } from '../store.js';
 import { openWord } from './worddetail.js';
 import { openAddWords } from './addwords.js';
 
@@ -9,8 +9,9 @@ const FILTERS = [
   ['all', 'All'], ['new', 'New'], ['learning', 'Learning'], ['learned', 'Learned'],
 ];
 
-// Kept between renders so search and filters survive coming back to the screen.
-const view = { q: '', filter: 'all', lesson: '' };
+// Kept between renders so search, filters and an in-progress selection
+// survive coming back to the screen.
+const view = { q: '', filter: 'all', lesson: '', selecting: false, selected: new Set() };
 
 export function renderWords(root, rerender, goBack) {
   const stats = counts();
@@ -30,9 +31,14 @@ export function renderWords(root, rerender, goBack) {
 
   const list = filtered();
   const known = lessons();
+  const selecting = view.selecting;
+  const allVisibleSelected = list.length > 0 && list.every((w) => view.selected.has(w.id));
 
   root.innerHTML = `
-    <button class="btn btn-quiet" data-act="back" style="margin:0 0 8px -12px">← Back</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 8px -12px">
+      <button class="btn btn-quiet" data-act="back">← Back</button>
+      <button class="btn btn-quiet" data-act="toggle-select">${selecting ? 'Cancel' : 'Select'}</button>
+    </div>
     <input class="search" id="q" type="search" placeholder="Search words, translations, pronunciation"
       value="${esc(view.q)}" autocomplete="off">
 
@@ -50,9 +56,14 @@ export function renderWords(root, rerender, goBack) {
       </select>
     </div>` : ''}
 
+    ${selecting ? `<div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-ghost" data-act="select-all">${allVisibleSelected ? 'Deselect all' : 'Select all'}</button>
+      <button class="btn btn-danger" data-act="delete-selected" ${view.selected.size ? '' : 'disabled'}>Delete (${view.selected.size})</button>
+    </div>` : ''}
+
     <p class="count-line">${list.length} of ${stats.total} word${stats.total === 1 ? '' : 's'}</p>
 
-    ${list.length ? `<ul class="list">${list.map(row).join('')}</ul>`
+    ${list.length ? `<ul class="list">${list.map((w) => row(w, selecting, view.selected)).join('')}</ul>`
       : '<div class="empty">Nothing matches.</div>'}
   `;
 
@@ -66,8 +77,34 @@ export function renderWords(root, rerender, goBack) {
   });
 
   on(root, '[data-act="back"]', 'click', goBack);
+  on(root, '[data-act="toggle-select"]', 'click', () => {
+    view.selecting = !view.selecting;
+    if (!view.selecting) view.selected = new Set();
+    rerender();
+  });
+  on(root, '[data-act="select-all"]', 'click', () => {
+    const ids = list.map((w) => w.id);
+    if (allVisibleSelected) ids.forEach((id) => view.selected.delete(id));
+    else ids.forEach((id) => view.selected.add(id));
+    rerender();
+  });
+  on(root, '[data-act="delete-selected"]', 'click', () => {
+    const ids = [...view.selected];
+    if (!ids.length) return;
+    if (!confirm(`Delete ${ids.length} word${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    deleteWords(ids);
+    view.selecting = false;
+    view.selected = new Set();
+    toast(`${ids.length} word${ids.length === 1 ? '' : 's'} deleted`);
+    rerender();
+  });
   on(root, '[data-filter]', 'click', (el) => { view.filter = el.dataset.filter; rerender(); });
   qs(root, '#lesson')?.addEventListener('change', (e) => { view.lesson = e.target.value; rerender(); });
+  on(root, '[data-select]', 'change', (el) => {
+    const id = el.dataset.select;
+    if (el.checked) view.selected.add(id); else view.selected.delete(id);
+    rerender();
+  });
   on(root, '[data-word]', 'click', (el) => openWord(el.dataset.word, rerender));
 }
 
@@ -84,13 +121,20 @@ function filtered() {
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 
-function row(word) {
-  return `<li><button class="word-row" data-word="${esc(word.id)}">
+function row(word, selecting, selected) {
+  const body = `
     <span class="col">
       <span class="term">${esc(word.term)}</span>
       ${word.transcription ? `<span class="tr" style="display:block">${esc(word.transcription)}</span>` : ''}
       <span class="tl" style="display:block">${esc(word.translation)}</span>
     </span>
-    <span class="status status-${word.status}">${word.status}</span>
-  </button></li>`;
+    <span class="status status-${word.status}">${word.status}</span>`;
+
+  if (selecting) {
+    return `<li><label class="word-row">
+      <input type="checkbox" class="row-check" data-select="${esc(word.id)}" ${selected.has(word.id) ? 'checked' : ''}>
+      ${body}
+    </label></li>`;
+  }
+  return `<li><button class="word-row" data-word="${esc(word.id)}">${body}</button></li>`;
 }

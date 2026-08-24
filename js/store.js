@@ -226,6 +226,15 @@ export function deleteWord(id) {
   notify();
 }
 
+/** Bulk delete — one filter pass and one save/notify, unlike N calls to deleteWord. */
+export function deleteWords(ids) {
+  if (!ids.length) return;
+  const drop = new Set(ids);
+  store.words = store.words.filter((w) => !drop.has(w.id));
+  save();
+  notify();
+}
+
 export function touched() { save(); notify(); }
 
 export function lessons(deckId = store.activeDeckId) {

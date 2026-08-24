@@ -208,6 +208,7 @@ button.action-card:focus-visible { outline: 2px solid var(--blue); outline-offse
 }
 .word-row:hover { background: var(--surface); }
 .word-row .col { min-width: 0; flex: 1; }
+.word-row .row-check { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--blue); }
 .word-row .term { font-size: 18px; font-weight: 550; letter-spacing: -.01em; }
 .word-row .tr { font-size: 14px; color: var(--muted); }
 .word-row .tl { font-size: 15px; color: var(--ink-2); }
