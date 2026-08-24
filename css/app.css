@@ -58,20 +58,25 @@ h1, h2, h3, p { margin: 0; }
   display: flex; align-items: center; justify-content: space-between;
   gap: 16px; padding: 22px 0 14px;
 }
-.brand { font-weight: 650; letter-spacing: -.02em; font-size: 19px; }
+.brand-logo { height: 28px; width: auto; display: block; }
 .screen { padding-top: 8px; }
 
-.deckbar { display: flex; align-items: center; gap: 8px; padding-bottom: 4px; }
+.deckbar-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.deckbar-row > [data-open="add"] { margin-top: 17px; }
+.deckbar { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding-bottom: 8px; }
 .deckbar:empty { display: none; }
+.deckbar-label {
+  font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted); padding-left: 2px;
+}
 .deck-select {
   appearance: none; -webkit-appearance: none;
   border: 1px solid var(--line); border-radius: 999px; background: var(--surface);
-  padding: 7px 30px 7px 14px; font-size: 14px; font-weight: 600; color: var(--ink);
+  padding: 7px 32px 7px 14px; font-size: 14px; font-weight: 600; color: var(--ink);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238A8A93' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 12px center;
 }
 .deck-select:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-.deck-add { padding: 7px 12px; font-size: 14px; }
 
 /* --- buttons --------------------------------------------------- */
 .btn {
