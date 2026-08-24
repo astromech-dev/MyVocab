@@ -10,6 +10,25 @@ import { openAddWords } from './addwords.js';
 const NEW_BATCH = 10;
 const DAYS_SHOWN = 14;
 
+/** One contextual primary action — never two equally-weighted CTAs. */
+function ctaBlock(stats, pool) {
+  const newBatch = Math.min(NEW_BATCH, stats.new);
+
+  if (pool.length > 0) {
+    return `
+      <button class="btn btn-big btn-primary" data-act="practice">Practice ${plural(pool.length, 'word', 'words')}</button>
+      ${stats.new > 0 ? `<button class="btn btn-ghost" data-act="learn-new" style="margin-top:10px">+ Learn ${plural(newBatch, 'new word', 'new words')}</button>` : ''}
+    `;
+  }
+  if (stats.new > 0) {
+    return `<button class="btn btn-big btn-primary" data-act="learn-new">Learn ${plural(newBatch, 'new word', 'new words')}</button>`;
+  }
+  return `
+    <p class="today-label">All words learned</p>
+    <p class="tiny muted" style="margin-top:6px">Try an exam, or add more words.</p>
+  `;
+}
+
 export function renderOverview(root, rerender, openWords) {
   const stats = counts();
 
@@ -26,16 +45,15 @@ export function renderOverview(root, rerender, openWords) {
 
   const pool = learningPool();
   const learnedPct = stats.total ? Math.round((stats.learned / stats.total) * 100) : 0;
-  const newBatch = Math.min(NEW_BATCH, stats.new);
-  const caughtUp = !stats.new && !pool.length;
   const history = recentActivity(DAYS_SHOWN);
   const peak = Math.max(1, ...history.map((d) => d.practiced));
 
   root.innerHTML = `
     <div class="card today-card">
-      <div class="today-count">${stats.learned}</div>
-      <p class="today-label">words learned</p>
-      <p class="tiny muted" style="margin-top:2px">${plural(stats.total, 'word', 'words')} in your vocabulary</p>
+      <p class="section-title" style="margin:0 0 8px">Your vocabulary</p>
+      <div class="today-count">${learnedPct}%</div>
+      <p class="today-label">learned</p>
+      <p class="tiny muted" style="margin-top:4px">${plural(stats.total, 'word', 'words')}</p>
       <div class="progressbar" style="margin:16px 0 20px"><i style="width:${learnedPct}%"></i></div>
 
       <div class="tiles">
@@ -44,20 +62,7 @@ export function renderOverview(root, rerender, openWords) {
         <div class="tile"><b>${stats.learned}</b><span>Learned</span></div>
       </div>
 
-      <div class="btn-row" style="margin-top:20px;align-items:stretch">
-        <div style="flex:1 1 150px">
-          <p class="section-title" style="margin:0 0 6px">New words</p>
-          <p class="tiny muted" style="margin-bottom:10px">${stats.new ? `${plural(stats.new, 'word', 'words')} waiting` : 'Nothing new'}</p>
-          <button class="btn btn-big btn-primary" data-act="learn-new" ${stats.new ? '' : 'disabled'}>Learn new words</button>
-          ${stats.new ? `<p class="tiny muted center" style="margin-top:8px">Start with ${newBatch}</p>` : ''}
-        </div>
-        <div style="flex:1 1 150px">
-          <p class="section-title" style="margin:0 0 6px">Practice</p>
-          <p class="tiny muted" style="margin-bottom:10px">${pool.length ? `${plural(pool.length, 'word', 'words')} you're learning` : 'Nothing to practice'}</p>
-          <button class="btn btn-big btn-primary" data-act="practice" ${pool.length ? '' : 'disabled'}>Practice words</button>
-        </div>
-      </div>
-      ${caughtUp ? '<p class="tiny muted center" style="margin-top:16px">All caught up — try an exam, or add more words.</p>' : ''}
+      <div style="margin-top:20px">${ctaBlock(stats, pool)}</div>
     </div>
 
     <p class="count-line"><a href="#" data-act="words">See all words →</a></p>
