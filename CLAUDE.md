@@ -52,22 +52,48 @@ after any mutating call (`addWords`, `updateWord`, `touched()`, etc., which
 all `save()` + `notify()`).
 
 **Data model:** `store.decks` are language pairs (target/native, both free
-text); `store.words` all carry a `deckId` and every deck-scoped query
-(`counts`, `lessons`, `pickNewWords`, `learningPool`, exam building) filters
-by it. Adding a second deck never touches another deck's words or progress.
+text, user-facing label "dictionary"/"vocabulary" — the `deck` naming is
+internal only); `store.words` all carry a `deckId` and every deck-scoped
+query (`counts`, `lessons`, `pickNewWords`, `learningPool`, exam building)
+filters by it. Adding a second deck never touches another deck's words or
+progress. [js/screens/overview.js](js/screens/overview.js:61) gates
+everything else behind having at least one deck — with none, the only thing
+rendered is the "create your first dictionary" form.
 
 **SRS logic lives in [js/srs.js](js/srs.js), UI flow in
 [js/study.js](js/study.js)** — keep that split. `srs.js` has no DOM code: it
 mutates a `word` object and recomputes `status` via `refreshStatus()`.
-`study.js` owns the three study sessions (`startIntro`, `startCarousel`,
-`startExam`) and renders into the shared `#sheet` panel. A word becomes
-"Learned" only after `LEVELS_TO_LEARN` successful recalls on separate
-calendar days *and* `MIN_AGE_DAYS` elapsed since `learningStartedAt` — both
-gates matter, see [js/srs.js:54](js/srs.js:54). Exam is the only path that
-demotes a Learned word back to Learning.
+`study.js` owns the four study sessions (`startIntro`, `startCarousel`,
+`startExam`, `pickLesson`) and renders into the shared `#sheet` panel.
+
+Learning happens in **three shrinking day-stages**, `STAGE_REQS = [3, 2, 1]`
+([js/srs.js:20](js/srs.js:20)): a word needs 3 successful Knews on its first
+day in Learning, then 2 on a *separate* calendar day, then 1 on a third —
+`applyAnswer()` tracks this per-direction with `stageReps`/`stageRepsDay`
+(today's progress within the current stage) and `dayDoneOn` (sets once
+today's stage is cleared, which is what `learningPool()` checks to hide a
+word from Practice until the next calendar day). Hitting all 3 stages sets
+`status = 'learned'` — no separate age gate needed, since three stages
+structurally require three different days. A miss costs more the further
+along the word is: free on the 3-rep stage, resets the current stage's
+progress to zero on the 2-rep stage, and knocks a whole stage back on the
+1-rep (last) stage — see the branches in `applyAnswer()`
+([js/srs.js:40](js/srs.js:40)). `applyAnswer()` returns `'learned'` /
+`'day-complete'` / `'continue'` so `study.js`'s carousel knows whether to
+drop the card from today's rotation or keep circulating it. Exam is the only
+path that demotes a Learned word back to Learning (via `learnAgain()`,
+which also powers the manual "Learn again" action in
+[js/screens/worddetail.js](js/screens/worddetail.js)).
+
+**Lesson picker:** when the eligible New or Learning words for Learn/Practice
+span more than one named lesson, `pickLesson()` interrupts with a "Choose a
+lesson" step before the real session starts (`newWordLessons()` /
+`learningPoolLessons()` in `srs.js` decide whether to show it — 0 or 1
+lesson name means skip straight to the session). See the call sites in
+[js/screens/overview.js](js/screens/overview.js:166).
 
 **Two-direction support is dormant, not removed:** `DIRECTIONS` in
-[js/srs.js:20](js/srs.js:20) currently only trains target→native (`'fr'`).
+[js/srs.js:24](js/srs.js:24) currently only trains target→native (`'fr'`).
 The reverse direction (`'rf'`) is tracked in the data model
 (`word.dirs.rf`) but excluded from `DIRECTIONS`, so re-enabling it is a
 one-line change, not a data migration.
