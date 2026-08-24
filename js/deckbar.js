@@ -1,4 +1,4 @@
-// The language switcher — lives in the header, outside the main screen, so
+// The vocabulary switcher — lives in the header, outside the main screen, so
 // it renders itself and needs its own call to refresh (see app.js).
 
 import { esc, on, toast } from './dom.js';
@@ -13,18 +13,18 @@ export function renderDeckBar(onChange) {
   const list = decks();
   const active = activeDeck();
 
-  // Before any deck exists, Overview itself is the "create your first
-  // dictionary" step — nothing for this bar to show yet.
+  // Before any deck exists, Overview itself is the onboarding flow —
+  // nothing for this bar to show yet.
   if (!list.length) {
     bar.innerHTML = '';
     return;
   }
 
   bar.innerHTML = `
-    <span class="deckbar-label">Vocabulary</span>
-    <select class="deck-select" id="deck-select" aria-label="Vocabulary">
-      ${list.map((d) => `<option value="${esc(d.id)}" ${d.id === active?.id ? 'selected' : ''}>${esc(d.target)}</option>`).join('')}
-      <option value="${NEW_DECK}">+ Add vocabulary</option>
+    <span class="deckbar-label">Your vocabularies</span>
+    <select class="deck-select" id="deck-select" aria-label="Your vocabularies">
+      ${list.map((d) => `<option value="${esc(d.id)}" ${d.id === active?.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}
+      <option value="${NEW_DECK}">+ New vocabulary</option>
     </select>
   `;
 
@@ -40,7 +40,7 @@ export function renderDeckBar(onChange) {
   });
 }
 
-/** New language pair sheet, for adding a language once at least one already exists. */
+/** New vocabulary sheet, for adding another vocabulary once at least one already exists. */
 export function openNewDeck(onChange) {
   sheet.hidden = false;
   document.body.style.overflow = 'hidden';
@@ -50,10 +50,8 @@ export function openNewDeck(onChange) {
       <h2>New vocabulary</h2>
       <button class="btn btn-quiet" data-act="cancel">Cancel</button>
     </div>
-    <label class="field"><span>What are you learning?</span>
-      <input class="input" id="f-target" placeholder="e.g. English" autocomplete="off"></label>
-    <label class="field"><span>Translate into</span>
-      <input class="input" id="f-native" placeholder="e.g. Russian" autocomplete="off"></label>
+    <label class="field"><span>Vocabulary name</span>
+      <input class="input" id="f-name" placeholder="e.g. Italian" autocomplete="off"></label>
     <div class="sheet-foot">
       <button class="btn btn-big btn-primary" data-act="create">Create</button>
     </div>
@@ -64,12 +62,11 @@ export function openNewDeck(onChange) {
 
   on(inner, '[data-act="cancel"]', 'click', close);
   on(inner, '[data-act="create"]', 'click', () => {
-    const target = sheet.querySelector('#f-target').value.trim();
-    const native = sheet.querySelector('#f-native').value.trim();
-    if (!target || !native) { toast('Fill in both languages'); return; }
-    addDeck(target, native);
+    const name = sheet.querySelector('#f-name').value.trim();
+    if (!name) { toast('Name your vocabulary'); return; }
+    addDeck(name);
     close();
     onChange();
   });
-  sheet.querySelector('#f-target').focus();
+  sheet.querySelector('#f-name').focus();
 }

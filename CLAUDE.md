@@ -51,14 +51,16 @@ they read `store` accessors and call `subscribe()` or re-run `render()`
 after any mutating call (`addWords`, `updateWord`, `touched()`, etc., which
 all `save()` + `notify()`).
 
-**Data model:** `store.decks` are language pairs (target/native, both free
-text, user-facing label "dictionary"/"vocabulary" — the `deck` naming is
-internal only); `store.words` all carry a `deckId` and every deck-scoped
-query (`counts`, `lessons`, `pickNewWords`, `learningPool`, exam building)
-filters by it. Adding a second deck never touches another deck's words or
-progress. [js/screens/overview.js](js/screens/overview.js:61) gates
-everything else behind having at least one deck — with none, the only thing
-rendered is the "create your first dictionary" form.
+**Data model:** `store.decks` are independent vocabularies (just `{id, name,
+createdAt}` — the `deck` naming is internal only, user-facing label is always
+"vocabulary", never "dictionary" or "language pair"); `store.words` all carry
+a `deckId` and every deck-scoped query (`counts`, `lessons`, `pickNewWords`,
+`learningPool`, exam building) filters by it. Adding a second deck never
+touches another deck's words or progress. [js/screens/overview.js](js/screens/overview.js:62)
+gates everything else behind having at least one deck — with none, it
+renders [js/screens/onboarding.js](js/screens/onboarding.js), a two-step
+first-run flow (welcome + restore-from-backup, then name-the-first-vocabulary)
+that hands off to `addDeck()`/`importBackup()`.
 
 **SRS logic lives in [js/srs.js](js/srs.js), UI flow in
 [js/study.js](js/study.js)** — keep that split. `srs.js` has no DOM code: it
@@ -90,7 +92,7 @@ span more than one named lesson, `pickLesson()` interrupts with a "Choose a
 lesson" step before the real session starts (`newWordLessons()` /
 `learningPoolLessons()` in `srs.js` decide whether to show it — 0 or 1
 lesson name means skip straight to the session). See the call sites in
-[js/screens/overview.js](js/screens/overview.js:166).
+[js/screens/overview.js](js/screens/overview.js:146).
 
 **Two-direction support is dormant, not removed:** `DIRECTIONS` in
 [js/srs.js:24](js/srs.js:24) currently only trains target→native (`'fr'`).

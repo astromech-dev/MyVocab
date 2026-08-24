@@ -191,7 +191,7 @@ function renderCarousel() {
       <span class="tiny muted" style="margin-left:auto">${plural(session.queue.length, 'word', 'words')} in rotation${session.promoted ? ` · ${session.promoted} learned` : ''}${session.doneToday ? ` · ${session.doneToday} done for today` : ''}</span>
     </div>
     <div class="flash">
-      <div class="prompt-kind">${esc(deck.target)} → ${esc(deck.native)}</div>
+      <div class="prompt-kind">${esc(deck.name)}</div>
       <div class="term">${esc(word.term)}</div>
       ${session.revealed ? `
         ${word.transcription ? `<div class="translit">[${esc(word.transcription)}]</div>` : ''}
@@ -260,7 +260,7 @@ function renderExam() {
   sheet.innerHTML = `<div class="study">
     ${progress(session.index + (answered ? 1 : 0), session.questions.length)}
     <div class="flash">
-      <div class="prompt-kind">${esc(deck.target)} → ${esc(deck.native)}</div>
+      <div class="prompt-kind">${esc(deck.name)}</div>
       <div class="term">${esc(word.term)}</div>
     </div>
     <div class="mc-options">

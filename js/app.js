@@ -13,7 +13,7 @@ const addWordsBtn = document.querySelector('[data-open="add"]');
 
 function render() {
   renderDeckBar(render);   // outside #screen, so it needs its own refresh call
-  // Nothing to add words to until a dictionary (deck) exists — creating one
+  // Nothing to add words to until a vocabulary (deck) exists — creating one
   // is step one, so this shortcut stays hidden until then.
   addWordsBtn.hidden = !activeDeck();
 

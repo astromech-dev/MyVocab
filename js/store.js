@@ -9,8 +9,8 @@ const KEY = 'myvocab.v1';
 const DAY = 86400000;
 
 export const store = {
-  version: 3,
-  decks: [],          // [{id, target, native, createdAt}] — one per language pair
+  version: 4,
+  decks: [],          // [{id, name, createdAt}] — one independent vocabulary
   activeDeckId: null,
   words: [],
   days: {},        // 'YYYY-MM-DD' -> words practiced that day
@@ -63,14 +63,14 @@ function adopt(data) {
   const words = Array.isArray(data.words) ? data.words.map(normalizeWord) : [];
 
   // Words from before decks existed (or a backup that predates them) have no
-  // deckId — this app only ever taught Armenian → Russian back then, so file
-  // them all under one deck matching that original setup rather than losing
-  // them or making the reader guess.
+  // deckId — this app only ever taught Armenian back then, so file them all
+  // under one deck matching that original setup rather than losing them or
+  // making the reader guess.
   const orphans = words.filter((w) => !w.deckId);
   if (orphans.length) {
     let home = decks[0];
     if (!home) {
-      home = normalizeDeck({ target: 'Armenian', native: 'Russian', createdAt: 0 });
+      home = normalizeDeck({ name: 'Armenian', createdAt: 0 });
       decks.push(home);
     }
     orphans.forEach((w) => { w.deckId = home.id; });
@@ -83,11 +83,12 @@ function adopt(data) {
   store.seedMerged = Array.isArray(data.seedMerged) ? data.seedMerged : [];
 }
 
+/** `target` is read as a fallback so backups saved before the language-pair
+ * fields were dropped still recover a sensible name. */
 function normalizeDeck(d) {
   return {
     id: d.id || uid(),
-    target: String(d.target || '').trim() || 'Language',
-    native: String(d.native || '').trim() || 'Translation',
+    name: String(d.name || d.target || '').trim() || 'Vocabulary',
     createdAt: d.createdAt || Date.now(),
   };
 }
@@ -108,7 +109,7 @@ function mergeSeed() {
       const key = row.term.toLowerCase();
       if (merged.has(key)) continue;
       if (!deckId) {
-        const legacy = normalizeDeck({ target: 'Armenian', native: 'Russian', createdAt: 0 });
+        const legacy = normalizeDeck({ name: 'Armenian', createdAt: 0 });
         store.decks.push(legacy);
         store.activeDeckId = deckId = legacy.id;
       }
@@ -165,7 +166,7 @@ function normalizeWord(w) {
   };
 }
 
-/* --- decks (language pairs) -------------------------------------- */
+/* --- decks (vocabularies) ------------------------------------------ */
 
 export function decks() { return store.decks; }
 
@@ -180,9 +181,9 @@ export function setActiveDeck(id) {
   notify();
 }
 
-/** New language pair. Becomes the active deck. */
-export function addDeck(target, native) {
-  const deck = normalizeDeck({ target, native });
+/** New vocabulary. Becomes the active deck. */
+export function addDeck(name) {
+  const deck = normalizeDeck({ name });
   store.decks.push(deck);
   store.activeDeckId = deck.id;
   save();
