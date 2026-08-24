@@ -54,32 +54,38 @@ words came from — daily practice always mixes lessons together.
 
 ## How the learning works
 
-Each word is scheduled twice, in both directions:
-
-- **Armenian → Russian** — do I recognise it?
-- **Russian → Armenian** — can I actually say it? This direction has the higher bar,
-  because speaking is the point.
+One direction: **Armenian → Russian** — see the word, say the translation.
+(Russian → Armenian used to run alongside it; it's switched off for now —
+`DIRECTIONS` in [js/srs.js](js/srs.js) turns it back on.)
 
 Answers move a card along a ladder of intervals (`0 · 1 · 2 · 4 · 9 · 21 · 45 · 90` days):
 
 | Answer | Effect |
 | --- | --- |
 | **Knew** | one step up — comes back later |
-| **Almost** | one step down — comes back soon |
 | **Didn't know** | back to the start — returns in the next sessions |
 
-A word becomes **Learned** when both directions are far along the ladder, and drops
-back to **Learning** by itself as soon as you start missing it. New words are shown
+A word becomes **Learned** once it's far along the ladder, and drops back to
+**Learning** by itself as soon as you start missing it. New words are shown
 first in a plain read-through deck, then join normal checking.
 
-`Today` collects everything due, recent mistakes first, plus a few new words
-(defaults: 24 cards, 6 new — `settings` in [js/store.js](js/store.js)).
+The one page collects everything due, recent mistakes first, plus a batch of
+new words (defaults: 24 cards, 10 new — `settings` in [js/store.js](js/store.js),
+not editable in-app on purpose — there's no settings screen to keep it simple).
+
+## One page, no tabs
+
+Everything lives on a single screen: today's practice, your word counts, an
+exam (pick "All words" or specific lessons, one card per word, score at the
+end), the last two weeks, and backup. A **"See all words →"** link opens the
+full searchable list when you need to look something up or fix a typo — it's
+a click away, not a permanent tab.
 
 ## Your data
 
 Everything is stored in this browser's `localStorage` under `myvocab.v1` — no accounts,
 no backend, nothing leaves the device. Clearing site data erases it, so use
-**Progress → Export backup** now and then; **Import backup** restores a saved file.
+**Export backup** now and then; **Import backup** restores a saved file.
 
 The word lists themselves also live in [js/seed.js](js/seed.js), which is part of the
 deployed site — so they're backed up in git history independently of any one device.
@@ -88,18 +94,20 @@ Your practice progress (schedule, streaks, session history) stays device-local.
 ## Layout
 
 ```
-index.html            app shell and navigation
+index.html            app shell — just the header now, no nav
 css/app.css           all styling, design tokens at the top
-js/app.js             hash router, start-up, service worker registration
+js/app.js             start-up, switches between the overview and words screens
 js/config.js          the two language names
 js/store.js           data model, persistence, history, backup, seed merging
 js/wordsformat.js     shared "word | translation | pronunciation" line parser
 js/seed.js            word lists from lessons, shipped with the app
-js/srs.js             scheduling and building the daily/practice queues
+js/srs.js             scheduling and building the daily/exam queues
 js/study.js           the study session: intro cards, flashcards, results
-js/screens/*.js       one file per screen: today, words, practice, progress,
-                      addwords, worddetail
-sw.js                 offline cache (bump CACHE after changing files)
+js/screens/overview.js the one page: today, stats, exam, history, backup
+js/screens/words.js    full word list, reached via a link, not a tab
+js/screens/addwords.js "+ Add words" sheet
+js/screens/worddetail.js one word's detail sheet
+sw.js                  offline cache (bump CACHE after changing files)
 ```
 
 After changing any file listed in `sw.js`, bump the `CACHE` constant there so

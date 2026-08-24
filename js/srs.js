@@ -1,8 +1,8 @@
-// Spaced repetition — two independent schedules per word, one per direction.
+// Spaced repetition — one schedule per word, per direction.
 //
-// Armenian → Russian: do I recognise it? Russian → Armenian: can I say it?
-// Each direction sits on its own step; each step is an interval in days.
-// Knowing it moves one step up, not knowing resets it to the start.
+// Armenian → Russian: see the word, say the translation. Each direction
+// sits on its own step; each step is an interval in days. Knowing it moves
+// one step up, not knowing resets it to the start.
 
 import { startOfDay, shuffle } from './dom.js';
 import { store } from './store.js';
@@ -11,7 +11,9 @@ const DAY = 86400000;
 const STEP_DAYS = [0, 1, 2, 4, 9, 21, 45, 90];
 const LEARNED_STEP = 4;          // 9 days apart counts as "known"
 
-export const DIRECTIONS = ['fr', 'rf'];
+// Russian → Armenian ('rf') is switched off for now — add it back here to
+// bring back speaking practice. The data model already tracks it per word.
+export const DIRECTIONS = ['fr'];
 
 function dirDue(dir, now = Date.now()) {
   return dir.due == null || dir.due <= startOfDay(now) + DAY - 1;
@@ -96,12 +98,6 @@ export function nextDue(word) {
 
 /* --- building queues -------------------------------------------- */
 
-function directionCards(words) {
-  const cards = [];
-  for (const w of words) for (const k of DIRECTIONS) cards.push({ wordId: w.id, kind: k });
-  return cards;
-}
-
 /**
  * Today's session: everything due in either direction, recent mistakes
  * first, plus a few new words. Returns { intro: Word[], cards: Card[] }.
@@ -131,28 +127,6 @@ export function buildToday(now = Date.now()) {
 export function todayPlan(now = Date.now()) {
   const { intro, cards } = buildToday(now);
   return { intro, cards, reviews: cards.length, newCount: intro.length, words: cards.length + intro.length };
-}
-
-/** Self-directed practice sets — the menu lives in js/screens/practice.js. */
-export function buildPractice(mode, { lesson = '' } = {}) {
-  const pool = store.words.filter((w) => !lesson || w.lesson === lesson);
-  const introduced = pool.filter((w) => w.introduced);
-
-  switch (mode) {
-    case 'new':
-      return { intro: pool.filter((w) => w.status === 'new').slice(0, 20), cards: [] };
-    case 'learning':
-      return { intro: [], cards: shuffle(directionCards(pool.filter((w) => w.status === 'learning'))) };
-    case 'rf':
-      return { intro: [], cards: shuffle(introduced.map((w) => ({ wordId: w.id, kind: 'rf' }))) };
-    case 'fr':
-      return { intro: [], cards: shuffle(introduced.map((w) => ({ wordId: w.id, kind: 'fr' }))) };
-    case 'mistakes':
-      return { intro: [], cards: shuffle(mistakeCards(pool)) };
-    case 'all':
-    default:
-      return { intro: [], cards: shuffle(directionCards(introduced)) };
-  }
 }
 
 /** Exam practice: one card per word, a random direction, score at the end. */

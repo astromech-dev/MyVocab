@@ -12,15 +12,18 @@ const FILTERS = [
 // Kept between renders so search and filters survive coming back to the screen.
 const view = { q: '', filter: 'all', lesson: '' };
 
-export function renderWords(root, rerender) {
+export function renderWords(root, rerender, goBack) {
   const stats = counts();
 
   if (!stats.total) {
-    root.innerHTML = `<div class="card empty">
-      <strong>No words yet</strong>
-      <p style="margin-bottom:22px">Everything you add shows up here.</p>
-      <button class="btn btn-primary" data-act="add">+ Add words</button>
-    </div>`;
+    root.innerHTML = `
+      <button class="btn btn-quiet" data-act="back" style="margin:0 0 8px -12px">← Back</button>
+      <div class="card empty">
+        <strong>No words yet</strong>
+        <p style="margin-bottom:22px">Everything you add shows up here.</p>
+        <button class="btn btn-primary" data-act="add">+ Add words</button>
+      </div>`;
+    on(root, '[data-act="back"]', 'click', goBack);
     on(root, '[data-act="add"]', 'click', () => openAddWords(rerender));
     return;
   }
@@ -29,6 +32,7 @@ export function renderWords(root, rerender) {
   const known = lessons();
 
   root.innerHTML = `
+    <button class="btn btn-quiet" data-act="back" style="margin:0 0 8px -12px">← Back</button>
     <input class="search" id="q" type="search" placeholder="Search words, translations, pronunciation"
       value="${esc(view.q)}" autocomplete="off">
 
@@ -61,6 +65,7 @@ export function renderWords(root, rerender) {
     if (next) { next.focus(); next.setSelectionRange(cursor, cursor); }
   });
 
+  on(root, '[data-act="back"]', 'click', goBack);
   on(root, '[data-filter]', 'click', (el) => { view.filter = el.dataset.filter; rerender(); });
   qs(root, '#lesson')?.addEventListener('change', (e) => { view.lesson = e.target.value; rerender(); });
   on(root, '[data-word]', 'click', (el) => openWord(el.dataset.word, rerender));

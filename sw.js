@@ -1,6 +1,6 @@
 // Offline: cache the app shell on install, serve from cache first.
 // Bump CACHE whenever a file below changes so browsers pick up the new version.
-const CACHE = 'myvocab-v2';
+const CACHE = 'myvocab-v3';
 
 const SHELL = [
   './',
@@ -15,10 +15,8 @@ const SHELL = [
   'js/study.js',
   'js/seed.js',
   'js/wordsformat.js',
-  'js/screens/today.js',
+  'js/screens/overview.js',
   'js/screens/words.js',
-  'js/screens/practice.js',
-  'js/screens/progress.js',
   'js/screens/addwords.js',
   'js/screens/worddetail.js',
   'icons/icon.svg',
