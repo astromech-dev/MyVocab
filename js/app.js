@@ -29,6 +29,11 @@ on(document, '[data-open="add"]', 'click', () => openAddWords(render));
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch((err) => console.warn('MyVocab: offline mode unavailable', err));
+    navigator.serviceWorker.register('sw.js')
+      .then((reg) => reg.update())
+      .catch((err) => console.warn('MyVocab: offline mode unavailable', err));
   });
+  // A newly activated worker takes over mid-session (skipWaiting +
+  // clients.claim) — reload so the page picks up the new assets right away.
+  navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
 }

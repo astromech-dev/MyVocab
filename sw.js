@@ -1,6 +1,6 @@
 // Offline: cache the app shell on install, serve from cache first.
 // Bump CACHE whenever a file below changes so browsers pick up the new version.
-const CACHE = 'myvocab-v4';
+const CACHE = 'myvocab-v5';
 
 const SHELL = [
   './',
@@ -42,21 +42,15 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET' || new URL(request.url).origin !== location.origin) return;
 
+  // Network first, so a normal (non-incognito) tab sees new deploys right
+  // away instead of the previously cached version. Cache is only the
+  // offline fallback.
   event.respondWith(
-    caches.match(request).then((hit) => {
-      if (hit) {
-        // Refresh quietly in the background for the next visit.
-        fetch(request).then((res) => {
-          if (res.ok) caches.open(CACHE).then((c) => c.put(request, res.clone()));
-        }).catch(() => {});
-        return hit;
-      }
-      return fetch(request)
-        .then((res) => {
-          if (res.ok) caches.open(CACHE).then((c) => c.put(request, res.clone()));
-          return res;
-        })
-        .catch(() => caches.match('index.html'));
-    })
+    fetch(request)
+      .then((res) => {
+        if (res.ok) caches.open(CACHE).then((c) => c.put(request, res.clone()));
+        return res;
+      })
+      .catch(() => caches.match(request).then((hit) => hit || caches.match('index.html')))
   );
 });
