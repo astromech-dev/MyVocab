@@ -83,12 +83,16 @@ export function learnAgain(word, now = Date.now()) {
 
 /* --- picking words ------------------------------------------------- */
 
-/** Oldest-added New words first, for "Learn new words". */
+/**
+ * Oldest-added New words first (so nothing sits forever), but shuffled
+ * before showing — otherwise a batch is just one lesson read top to bottom.
+ */
 export function pickNewWords(count) {
-  return store.words
+  const oldest = store.words
     .filter((w) => w.status === 'new')
     .sort((a, b) => a.createdAt - b.createdAt)
     .slice(0, count);
+  return shuffle(oldest);
 }
 
 export function learningPool() {
