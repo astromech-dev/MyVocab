@@ -10,23 +10,49 @@ import { openAddWords } from './addwords.js';
 const NEW_BATCH = 10;
 const DAYS_SHOWN = 14;
 
-/** One contextual primary action — never two equally-weighted CTAs. */
-function ctaBlock(stats, pool) {
+/**
+ * Practice and Learn as two rows, not two competing buttons: whichever has
+ * words waiting gets the emphasized ("primary") look, an empty one goes
+ * quiet instead of disappearing so the layout doesn't jump around.
+ */
+function actionsBlock(stats, pool) {
   const newBatch = Math.min(NEW_BATCH, stats.new);
 
-  if (pool.length > 0) {
-    return `
-      <button class="btn btn-big btn-primary" data-act="practice">Practice ${plural(pool.length, 'word', 'words')}</button>
-      ${stats.new > 0 ? `<button class="btn btn-ghost" data-act="learn-new" style="margin-top:10px">+ Learn ${plural(newBatch, 'new word', 'new words')}</button>` : ''}
-    `;
+  if (!stats.new && !pool.length) {
+    return `<div class="actions">
+      <div class="action-card done">
+        <div class="action-icon">✓</div>
+        <div class="action-text"><div class="t">All ${stats.total} words learned</div><div class="s">Try the exam to stay sharp</div></div>
+        <button class="action-btn solid" data-act="exam">Exam</button>
+      </div>
+    </div>`;
   }
-  if (stats.new > 0) {
-    return `<button class="btn btn-big btn-primary" data-act="learn-new">Learn ${plural(newBatch, 'new word', 'new words')}</button>`;
-  }
-  return `
-    <p class="today-label">All words learned</p>
-    <p class="tiny muted" style="margin-top:6px">Try an exam, or add more words.</p>
-  `;
+
+  const practiceRow = pool.length
+    ? `<div class="action-card learning primary">
+        <div class="action-icon">${pool.length}</div>
+        <div class="action-text"><div class="t">Words ready to review</div><div class="s">In your learning queue</div></div>
+        <button class="action-btn solid" data-act="practice">Practice</button>
+      </div>`
+    : `<div class="action-card learning disabled">
+        <div class="action-icon">0</div>
+        <div class="action-text"><div class="t">Nothing to review yet</div><div class="s">Learn some words first</div></div>
+        <button class="action-btn outline" disabled>—</button>
+      </div>`;
+
+  const learnRow = stats.new
+    ? `<div class="action-card new${pool.length ? '' : ' primary'}">
+        <div class="action-icon">+</div>
+        <div class="action-text"><div class="t">${plural(stats.new, 'new word', 'new words')} waiting</div><div class="s">Start a fresh batch</div></div>
+        <button class="action-btn ${pool.length ? 'outline' : 'solid'}" data-act="learn-new">Learn ${newBatch}</button>
+      </div>`
+    : `<div class="action-card new disabled">
+        <div class="action-icon">0</div>
+        <div class="action-text"><div class="t">No new words</div><div class="s">All caught up on new material</div></div>
+        <button class="action-btn outline" disabled>—</button>
+      </div>`;
+
+  return `<div class="actions">${pool.length ? practiceRow + learnRow : learnRow + practiceRow}</div>`;
 }
 
 export function renderOverview(root, rerender, openWords) {
@@ -49,20 +75,23 @@ export function renderOverview(root, rerender, openWords) {
   const peak = Math.max(1, ...history.map((d) => d.practiced));
 
   root.innerHTML = `
-    <div class="card today-card">
-      <p class="section-title" style="margin:0 0 8px">Your vocabulary</p>
-      <div class="today-count">${learnedPct}%</div>
-      <p class="today-label">learned</p>
-      <p class="tiny muted" style="margin-top:4px">${plural(stats.total, 'word', 'words')}</p>
-      <div class="progressbar" style="margin:16px 0 20px"><i style="width:${learnedPct}%"></i></div>
-
-      <div class="tiles">
-        <div class="tile warm"><b>${stats.new}</b><span>New</span></div>
-        <div class="tile accent"><b>${stats.learning}</b><span>Learning</span></div>
-        <div class="tile"><b>${stats.learned}</b><span>Learned</span></div>
+    <div class="card">
+      <div class="status-row-top">
+        <div class="pct">${learnedPct}%<em>learned</em></div>
+        <div class="count">${plural(stats.total, 'word', 'words')} total</div>
+      </div>
+      <div class="seg-bar">
+        <i class="new" style="flex:${stats.new}"></i>
+        <i class="learning" style="flex:${stats.learning}"></i>
+        <i class="learned" style="flex:${stats.learned}"></i>
+      </div>
+      <div class="legend">
+        <div class="item"><span class="swatch new"></span>New <b>${stats.new}</b></div>
+        <div class="item"><span class="swatch learning"></span>Learning <b>${stats.learning}</b></div>
+        <div class="item"><span class="swatch learned"></span>Learned <b>${stats.learned}</b></div>
       </div>
 
-      <div style="margin-top:20px">${ctaBlock(stats, pool)}</div>
+      ${actionsBlock(stats, pool)}
     </div>
 
     <p class="count-line"><a href="#" data-act="words">See all words →</a></p>

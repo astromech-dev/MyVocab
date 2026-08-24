@@ -20,6 +20,8 @@
   --red-soft:  #FDEDEB;
   --orange:    #E8720C;
   --orange-soft:#FFF2E4;
+  --green:     #1C9A5B;
+  --green-soft:#E6F6EC;
 
   --r-lg: 24px;
   --r-md: 16px;
@@ -106,6 +108,51 @@ h1, h2, h3, p { margin: 0; }
 .today-count { font-size: 46px; font-weight: 650; letter-spacing: -.03em; line-height: 1.05; }
 .today-label { font-size: 17px; color: var(--ink-2); margin-top: 2px; }
 .done-mark { font-size: 40px; line-height: 1; color: var(--blue); }
+
+/* --- vocabulary status (percent, segmented bar, legend) --------- */
+.status-row-top { display: flex; align-items: baseline; justify-content: space-between; text-align: left; margin-bottom: 12px; }
+.status-row-top .pct { font-size: 24px; font-weight: 650; letter-spacing: -.02em; }
+.status-row-top .pct em { font-style: normal; font-weight: 500; font-size: 13px; color: var(--ink-2); margin-left: 6px; }
+.status-row-top .count { font-size: 12.5px; color: var(--muted); }
+.seg-bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--surface-2); margin-bottom: 12px; }
+.seg-bar i { display: block; height: 100%; }
+.seg-bar i.new { background: var(--orange); }
+.seg-bar i.learning { background: var(--blue); }
+.seg-bar i.learned { background: var(--green); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; text-align: left; }
+.legend .item { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); font-weight: 500; }
+.legend .item b { color: var(--ink); font-weight: 650; }
+.legend .swatch { width: 7px; height: 7px; border-radius: 50%; }
+.legend .swatch.new { background: var(--orange); }
+.legend .swatch.learning { background: var(--blue); }
+.legend .swatch.learned { background: var(--green); }
+
+/* --- action rows (Practice / Learn / done) ----------------------- */
+.actions { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.action-card {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-md); padding: 14px 16px;
+}
+.action-card.primary { border-color: transparent; background: var(--blue-soft); }
+.action-card.done { border-color: transparent; background: var(--green-soft); }
+.action-card.disabled { opacity: .55; }
+.action-icon {
+  width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 650; font-size: 15px; background: var(--surface-2); color: var(--ink-2);
+}
+.action-card.done .action-icon { background: var(--green); color: #fff; }
+.action-card.new .action-icon { background: var(--orange-soft); color: var(--orange); }
+.action-card.learning .action-icon { background: var(--blue); color: #fff; }
+.action-text { flex: 1; min-width: 0; }
+.action-text .t { font-weight: 600; font-size: 14px; }
+.action-text .s { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.action-btn { font-weight: 600; font-size: 13px; padding: 9px 14px; border-radius: 11px; flex-shrink: 0; white-space: nowrap; }
+.action-btn.solid { background: var(--blue); color: #fff; }
+.action-btn.outline { background: transparent; border: 1px solid var(--line); color: var(--ink); }
+.action-card.done .action-btn.solid { background: var(--green); }
+.action-btn:disabled { opacity: .7; cursor: default; }
 
 /* --- chips ----------------------------------------------------- */
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -215,13 +262,6 @@ textarea.input { min-height: 190px; resize: vertical; line-height: 1.6; }
 .mc-option.mc-correct { background: var(--blue-soft); border-color: var(--blue); color: var(--blue-ink); font-weight: 600; }
 .mc-option.mc-wrong { background: var(--red-soft); border-color: var(--red); color: var(--red); }
 
-/* --- progress tiles ---------------------------------------------- */
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
-.tile { background: var(--surface-2); border-radius: var(--r-md); padding: 14px; text-align: center; }
-.tile b { display: block; font-size: 24px; font-weight: 640; letter-spacing: -.02em; }
-.tile span { font-size: 12.5px; color: var(--muted); }
-.tile.accent b { color: var(--blue); }
-.tile.warm b { color: var(--orange); }
 .bars { display: flex; align-items: flex-end; gap: 6px; height: 92px; margin-top: 6px; }
 .bars div { flex: 1; background: var(--blue-soft); border-radius: 6px 6px 3px 3px; min-height: 3px; position: relative; }
 .bars div.on { background: var(--blue); }
