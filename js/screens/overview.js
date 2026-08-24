@@ -13,7 +13,8 @@ const DAYS_SHOWN = 14;
 /**
  * Practice and Learn as two rows, not two competing buttons: whichever has
  * words waiting gets the emphasized ("primary") look, an empty one goes
- * quiet instead of disappearing so the layout doesn't jump around.
+ * quiet instead of disappearing so the layout doesn't jump around. Each row
+ * is a single button — the whole card is the tap target, not a pill inside it.
  */
 function actionsBlock(stats, pool) {
   if (!stats.new && !pool.length) {
@@ -27,27 +28,25 @@ function actionsBlock(stats, pool) {
   }
 
   const practiceRow = pool.length
-    ? `<div class="action-card learning primary">
+    ? `<button class="action-card learning primary" type="button" data-act="practice">
         <div class="action-icon">${pool.length}</div>
         <div class="action-text"><div class="t">Words ready to review</div><div class="s">In your learning queue</div></div>
-        <button class="btn btn-primary" data-act="practice">Practice</button>
-      </div>`
+        <span class="action-go" aria-hidden="true">→</span>
+      </button>`
     : `<div class="action-card learning disabled">
         <div class="action-icon">0</div>
         <div class="action-text"><div class="t">Nothing to review yet</div><div class="s">Learn some words first</div></div>
-        <button class="btn btn-ghost" disabled>—</button>
       </div>`;
 
   const learnRow = stats.new
-    ? `<div class="action-card new${pool.length ? '' : ' primary'}">
+    ? `<button class="action-card new${pool.length ? '' : ' primary'}" type="button" data-act="learn-new">
         <div class="action-icon">+</div>
         <div class="action-text"><div class="t">${plural(stats.new, 'new word', 'new words')} waiting</div><div class="s">Start a fresh batch</div></div>
-        <button class="btn ${pool.length ? 'btn-ghost' : 'btn-primary'}" data-act="learn-new">Learn</button>
-      </div>`
+        <span class="action-go" aria-hidden="true">→</span>
+      </button>`
     : `<div class="action-card new disabled">
         <div class="action-icon">0</div>
         <div class="action-text"><div class="t">No new words</div><div class="s">All caught up on new material</div></div>
-        <button class="btn btn-ghost" disabled>—</button>
       </div>`;
 
   return `<div class="actions">${pool.length ? practiceRow + learnRow : learnRow + practiceRow}</div>`;
