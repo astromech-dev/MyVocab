@@ -13,7 +13,7 @@ export const store = {
   words: [],
   sessions: [],   // recent session results (newest last)
   days: {},       // 'YYYY-MM-DD' -> { practiced, knew, almost, unknown }
-  settings: { newPerDay: 6, dailyTarget: 24 },
+  settings: { newPerDay: 10, dailyTarget: 24 },
   seedMerged: [],  // lowercased terms already pulled in from seed.js, ever
 };
 
@@ -62,7 +62,8 @@ function adopt(data) {
   store.words = Array.isArray(data.words) ? data.words.map(normalizeWord) : [];
   store.sessions = Array.isArray(data.sessions) ? data.sessions.slice(-MAX_SESSIONS) : [];
   store.days = data.days && typeof data.days === 'object' ? data.days : {};
-  store.settings = { ...store.settings, ...(data.settings || {}) };
+  // Not user-editable (no settings screen), so always take these from code —
+  // otherwise a value saved from an old browser session would stick forever.
   store.seedMerged = Array.isArray(data.seedMerged) ? data.seedMerged : [];
 }
 
