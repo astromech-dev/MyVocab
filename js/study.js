@@ -8,7 +8,7 @@
 
 import { esc, on, shuffle, plural } from './dom.js';
 import { getWord, touched, recordActivity, activeDeck } from './store.js';
-import { applyAnswer, markIntroduced, learnAgain, buildExamQuestions, learningPool } from './srs.js';
+import { applyAnswer, markIntroduced, learnAgain, buildExamQuestions, learningPool, learningPoolLessons } from './srs.js';
 
 const sheet = document.getElementById('sheet');
 
@@ -46,6 +46,19 @@ export function startExam(words, { onExit } = {}) {
   const questions = buildExamQuestions(words, words[0]?.deckId);
   if (!questions.length) { session = { kind: 'empty', note: 'No learned words to test yet.' }; open(); render(); return; }
   session = { kind: 'exam', questions, index: 0, chosen: null, correct: 0, forgotten: [] };
+  open(); render();
+}
+
+/**
+ * Shown before Learn/Practice whenever the eligible words span more than one
+ * named lesson — lets the caller narrow to one lesson (or all) before it
+ * fetches the actual words and starts the real session. Calling code decides
+ * whether this step is needed (pass fewer than 2 lesson names to skip it) and
+ * what to do with the choice (`onChoose(lesson)`, `null` = all lessons).
+ */
+export function pickLesson(lessonNames, onChoose, { onExit } = {}) {
+  onClose = onExit || (() => {});
+  session = { kind: 'lesson-pick', lessonNames, onChoose };
   open(); render();
 }
 
@@ -291,7 +304,12 @@ function renderExamDone() {
   on(inner(), '[data-act="practice"]', 'click', () => {
     const exit = onClose;
     close();
-    startCarousel(learningPool(), { onExit: exit });
+    const lessonNames = learningPoolLessons();
+    if (lessonNames.length > 1) {
+      pickLesson(lessonNames, (lesson) => startCarousel(learningPool(undefined, undefined, lesson), { onExit: exit }), { onExit: exit });
+    } else {
+      startCarousel(learningPool(), { onExit: exit });
+    }
   });
 }
 
@@ -310,6 +328,19 @@ function render() {
   if (session.kind === 'intro') renderIntro();
   else if (session.kind === 'carousel') renderCarousel();
   else if (session.kind === 'exam') renderExam();
+  else if (session.kind === 'lesson-pick') renderLessonPick();
+}
+
+function renderLessonPick() {
+  sheet.innerHTML = `<div class="sheet-inner">
+    ${head('Choose a lesson')}
+    <div class="stack">
+      <button class="btn btn-big btn-primary" data-lesson="">All lessons</button>
+      ${session.lessonNames.map((name) => `<button class="btn btn-big btn-ghost" data-lesson="${esc(name)}">${esc(name)}</button>`).join('')}
+    </div>
+  </div>`;
+  on(inner(), '[data-act="close"]', 'click', close);
+  on(inner(), '[data-lesson]', 'click', (el) => session.onChoose(el.dataset.lesson || null));
 }
 
 function head(title) {

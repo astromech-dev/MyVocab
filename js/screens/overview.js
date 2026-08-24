@@ -3,8 +3,8 @@
 
 import { esc, on, plural, toast } from '../dom.js';
 import { store, counts, exportBackup, importBackup, recentActivity, activeDeck, addDeck } from '../store.js';
-import { learningPool, pickNewWords } from '../srs.js';
-import { startIntro, startCarousel, startExam } from '../study.js';
+import { learningPool, learningPoolLessons, pickNewWords, newWordLessons } from '../srs.js';
+import { startIntro, startCarousel, startExam, pickLesson } from '../study.js';
 import { openAddWords } from './addwords.js';
 
 const NEW_BATCH = 10;
@@ -165,12 +165,22 @@ export function renderOverview(root, rerender, openWords) {
 
   on(root, '[data-act="practice"]', 'click', () => {
     if (!pool.length) return;
-    startCarousel(pool, { onExit: rerender });
+    const lessonNames = learningPoolLessons();
+    if (lessonNames.length > 1) {
+      pickLesson(lessonNames, (lesson) => startCarousel(learningPool(undefined, undefined, lesson), { onExit: rerender }), { onExit: rerender });
+    } else {
+      startCarousel(pool, { onExit: rerender });
+    }
   });
 
   on(root, '[data-act="learn-new"]', 'click', () => {
     if (!stats.new) return;
-    startIntro(pickNewWords(NEW_BATCH), { onExit: rerender });
+    const lessonNames = newWordLessons();
+    if (lessonNames.length > 1) {
+      pickLesson(lessonNames, (lesson) => startIntro(pickNewWords(NEW_BATCH, undefined, lesson), { onExit: rerender }), { onExit: rerender });
+    } else {
+      startIntro(pickNewWords(NEW_BATCH), { onExit: rerender });
+    }
   });
 
   on(root, '[data-act="exam"]', 'click', () => {

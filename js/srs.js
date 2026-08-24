@@ -118,10 +118,11 @@ export function learnAgain(word, now = Date.now()) {
 /**
  * Oldest-added New words first (so nothing sits forever), but shuffled
  * before showing — otherwise a batch is just one lesson read top to bottom.
+ * Pass `lesson` to restrict the batch to one lesson (from `newWordLessons`).
  */
-export function pickNewWords(count, deckId = store.activeDeckId) {
+export function pickNewWords(count, deckId = store.activeDeckId, lesson = null) {
   const oldest = store.words
-    .filter((w) => w.deckId === deckId && w.status === 'new')
+    .filter((w) => w.deckId === deckId && w.status === 'new' && (!lesson || w.lesson === lesson))
     .sort((a, b) => a.createdAt - b.createdAt)
     .slice(0, count);
   return shuffle(oldest);
@@ -129,11 +130,30 @@ export function pickNewWords(count, deckId = store.activeDeckId) {
 
 /** Learning words still eligible for Practice today — i.e. not already at
  * today's per-stage quota. A word that hit its quota reappears once the
- * calendar day turns over, not before. */
-export function learningPool(deckId = store.activeDeckId, now = Date.now()) {
+ * calendar day turns over, not before. Pass `lesson` to restrict to one
+ * lesson (from `learningPoolLessons`). */
+export function learningPool(deckId = store.activeDeckId, now = Date.now(), lesson = null) {
   const today = dayKey(now);
   return store.words.filter((w) => w.deckId === deckId && w.status === 'learning'
-    && DIRECTIONS.some((k) => w.dirs[k].dayDoneOn !== today));
+    && DIRECTIONS.some((k) => w.dirs[k].dayDoneOn !== today)
+    && (!lesson || w.lesson === lesson));
+}
+
+function namedLessons(words) {
+  const names = new Set(words.filter((w) => w.lesson).map((w) => w.lesson));
+  return [...names].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}
+
+/** Named lessons represented among this deck's New words — for the
+ * lesson-pick step before Learn. Empty/single means "skip the step". */
+export function newWordLessons(deckId = store.activeDeckId) {
+  return namedLessons(store.words.filter((w) => w.deckId === deckId && w.status === 'new'));
+}
+
+/** Named lessons represented in today's learning pool — for the lesson-pick
+ * step before Practice. Empty/single means "skip the step". */
+export function learningPoolLessons(deckId = store.activeDeckId, now = Date.now()) {
+  return namedLessons(learningPool(deckId, now));
 }
 
 /* --- exam: multiple choice ------------------------------------------ */
