@@ -7,9 +7,8 @@
 //                    a miss demotes the word back to Learning right away.
 
 import { esc, on, shuffle, plural } from './dom.js';
-import { getWord, touched, recordActivity } from './store.js';
+import { getWord, touched, recordActivity, activeDeck } from './store.js';
 import { applyAnswer, markIntroduced, learnAgain, buildExamQuestions, learningPool } from './srs.js';
-import { TARGET_LANGUAGE, NATIVE_LANGUAGE } from './config.js';
 
 const sheet = document.getElementById('sheet');
 
@@ -44,7 +43,7 @@ export function startCarousel(words, { onExit } = {}) {
 /** Multiple-choice exam over Learned words — one shot, objective. */
 export function startExam(words, { onExit } = {}) {
   onClose = onExit || (() => {});
-  const questions = buildExamQuestions(words);
+  const questions = buildExamQuestions(words, words[0]?.deckId);
   if (!questions.length) { session = { kind: 'empty', note: 'No learned words to test yet.' }; open(); render(); return; }
   session = { kind: 'exam', questions, index: 0, chosen: null, correct: 0, forgotten: [] };
   open(); render();
@@ -161,6 +160,7 @@ function renderCarousel() {
   if (!session.queue.length) { renderCarouselDone(); return; }
   const current = session.queue[0];
   const word = getWord(current.wordId);
+  const deck = activeDeck();
 
   const buttons = session.revealed
     ? `<div class="answers">
@@ -177,7 +177,7 @@ function renderCarousel() {
       <span class="tiny muted" style="margin-left:auto">${plural(session.queue.length, 'word', 'words')} in rotation${session.promoted ? ` · ${session.promoted} learned` : ''}</span>
     </div>
     <div class="flash">
-      <div class="prompt-kind">${esc(TARGET_LANGUAGE)} → ${esc(NATIVE_LANGUAGE)}</div>
+      <div class="prompt-kind">${esc(deck.target)} → ${esc(deck.native)}</div>
       <div class="term">${esc(word.term)}</div>
       ${session.revealed ? `
         ${word.transcription ? `<div class="translit">[${esc(word.transcription)}]</div>` : ''}
@@ -239,12 +239,13 @@ function renderExam() {
   if (session.done) { renderExamDone(); return; }
   const q = session.questions[session.index];
   const word = getWord(q.wordId);
+  const deck = activeDeck();
   const answered = session.chosen != null;
 
   sheet.innerHTML = `<div class="study">
     ${progress(session.index + (answered ? 1 : 0), session.questions.length)}
     <div class="flash">
-      <div class="prompt-kind">${esc(TARGET_LANGUAGE)} → ${esc(NATIVE_LANGUAGE)}</div>
+      <div class="prompt-kind">${esc(deck.target)} → ${esc(deck.native)}</div>
       <div class="term">${esc(word.term)}</div>
     </div>
     <div class="mc-options">

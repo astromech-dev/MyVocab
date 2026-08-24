@@ -9,7 +9,9 @@ const KEY = 'myvocab.v1';
 const DAY = 86400000;
 
 export const store = {
-  version: 2,
+  version: 3,
+  decks: [],          // [{id, target, native, createdAt}] — one per language pair
+  activeDeckId: null,
   words: [],
   days: {},        // 'YYYY-MM-DD' -> words practiced that day
   seedMerged: [],  // lowercased terms already pulled in from seed.js, ever
@@ -57,9 +59,37 @@ export function load() {
 
 function adopt(data) {
   if (!data || typeof data !== 'object') return;
-  store.words = Array.isArray(data.words) ? data.words.map(normalizeWord) : [];
+  const decks = Array.isArray(data.decks) ? data.decks.map(normalizeDeck) : [];
+  const words = Array.isArray(data.words) ? data.words.map(normalizeWord) : [];
+
+  // Words from before decks existed (or a backup that predates them) have no
+  // deckId — this app only ever taught Armenian → Russian back then, so file
+  // them all under one deck matching that original setup rather than losing
+  // them or making the reader guess.
+  const orphans = words.filter((w) => !w.deckId);
+  if (orphans.length) {
+    let home = decks[0];
+    if (!home) {
+      home = normalizeDeck({ target: 'Armenian', native: 'Russian', createdAt: 0 });
+      decks.push(home);
+    }
+    orphans.forEach((w) => { w.deckId = home.id; });
+  }
+
+  store.decks = decks;
+  store.words = words;
+  store.activeDeckId = decks.some((d) => d.id === data.activeDeckId) ? data.activeDeckId : (decks[0]?.id ?? null);
   store.days = data.days && typeof data.days === 'object' ? data.days : {};
   store.seedMerged = Array.isArray(data.seedMerged) ? data.seedMerged : [];
+}
+
+function normalizeDeck(d) {
+  return {
+    id: d.id || uid(),
+    target: String(d.target || '').trim() || 'Language',
+    native: String(d.native || '').trim() || 'Translation',
+    createdAt: d.createdAt || Date.now(),
+  };
 }
 
 /**
@@ -68,19 +98,27 @@ function adopt(data) {
  * comes back from the dead just because the app reloaded.
  */
 function mergeSeed() {
+  if (!SEED.length) return;
   const merged = new Set(store.seedMerged);
   const now = Date.now();
   let added = 0;
+  let deckId = store.activeDeckId;
   for (const { name, text } of SEED) {
     for (const row of parseWordLines(text)) {
       const key = row.term.toLowerCase();
       if (merged.has(key)) continue;
+      if (!deckId) {
+        const legacy = normalizeDeck({ target: 'Armenian', native: 'Russian', createdAt: 0 });
+        store.decks.push(legacy);
+        store.activeDeckId = deckId = legacy.id;
+      }
       store.words.push(normalizeWord({
         id: uid(),
         term: row.term,
         translation: row.translation,
         transcription: row.transcription,
         lesson: name,
+        deckId,
         createdAt: now + added,
       }));
       merged.add(key);
@@ -103,6 +141,7 @@ function normalizeWord(w) {
   });
   return {
     id: w.id || uid(),
+    deckId: w.deckId || null,
     term: String(w.term || '').trim(),
     translation: String(w.translation || '').trim(),
     transcription: String(w.transcription || '').trim(),
@@ -120,14 +159,40 @@ function normalizeWord(w) {
   };
 }
 
+/* --- decks (language pairs) -------------------------------------- */
+
+export function decks() { return store.decks; }
+
+export function activeDeck() {
+  return store.decks.find((d) => d.id === store.activeDeckId) || null;
+}
+
+export function setActiveDeck(id) {
+  if (!store.decks.some((d) => d.id === id) || id === store.activeDeckId) return;
+  store.activeDeckId = id;
+  save();
+  notify();
+}
+
+/** New language pair. Becomes the active deck. */
+export function addDeck(target, native) {
+  const deck = normalizeDeck({ target, native });
+  store.decks.push(deck);
+  store.activeDeckId = deck.id;
+  save();
+  notify();
+  return deck;
+}
+
 /* --- words ------------------------------------------------------ */
 
 export function getWord(id) { return store.words.find((w) => w.id === id); }
 
-export function addWords(rows, lesson = '') {
+export function addWords(rows, lesson = '', deckId = store.activeDeckId) {
   const now = Date.now();
   const added = rows.map((row, i) => normalizeWord({
     id: uid(),
+    deckId,
     term: row.term,
     translation: row.translation,
     transcription: row.transcription,
@@ -157,14 +222,18 @@ export function deleteWord(id) {
 
 export function touched() { save(); notify(); }
 
-export function lessons() {
-  const names = new Set(store.words.map((w) => w.lesson).filter(Boolean));
+export function lessons(deckId = store.activeDeckId) {
+  const names = new Set(store.words.filter((w) => w.deckId === deckId).map((w) => w.lesson).filter(Boolean));
   return [...names].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 }
 
-export function counts() {
-  const c = { total: store.words.length, new: 0, learning: 0, learned: 0 };
-  for (const w of store.words) c[w.status]++;
+export function counts(deckId = store.activeDeckId) {
+  const c = { total: 0, new: 0, learning: 0, learned: 0 };
+  for (const w of store.words) {
+    if (w.deckId !== deckId) continue;
+    c.total++;
+    c[w.status]++;
+  }
   return c;
 }
 

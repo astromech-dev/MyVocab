@@ -2,10 +2,11 @@
 // New → Learning → Learned, and you decide how much to do and when.
 
 import { esc, on, plural, toast } from '../dom.js';
-import { store, counts, exportBackup, importBackup, recentActivity } from '../store.js';
+import { store, counts, exportBackup, importBackup, recentActivity, activeDeck } from '../store.js';
 import { learningPool, pickNewWords } from '../srs.js';
 import { startIntro, startCarousel, startExam } from '../study.js';
 import { openAddWords } from './addwords.js';
+import { openNewDeck } from '../deckbar.js';
 
 const NEW_BATCH = 10;
 const DAYS_SHOWN = 14;
@@ -53,6 +54,16 @@ function actionsBlock(stats, pool) {
 }
 
 export function renderOverview(root, rerender, openWords) {
+  if (!activeDeck()) {
+    root.innerHTML = `<div class="card empty">
+      <strong>Welcome to MyVocab</strong>
+      <p style="max-width:34ch;margin:0 auto 22px">Start by adding the language you're learning.</p>
+      <button class="btn btn-primary" data-act="new-deck">+ Add a language</button>
+    </div>`;
+    on(root, '[data-act="new-deck"]', 'click', () => openNewDeck(rerender));
+    return;
+  }
+
   const stats = counts();
 
   if (!stats.total) {
@@ -144,7 +155,7 @@ export function renderOverview(root, rerender, openWords) {
 
   on(root, '[data-act="exam"]', 'click', () => {
     if (!stats.learned) return;
-    startExam(store.words.filter((w) => w.status === 'learned'), { onExit: rerender });
+    startExam(store.words.filter((w) => w.deckId === store.activeDeckId && w.status === 'learned'), { onExit: rerender });
   });
 
   on(root, '[data-act="export"]', 'click', () => { exportBackup(); toast('Backup saved'); });

@@ -87,31 +87,31 @@ export function learnAgain(word, now = Date.now()) {
  * Oldest-added New words first (so nothing sits forever), but shuffled
  * before showing — otherwise a batch is just one lesson read top to bottom.
  */
-export function pickNewWords(count) {
+export function pickNewWords(count, deckId = store.activeDeckId) {
   const oldest = store.words
-    .filter((w) => w.status === 'new')
+    .filter((w) => w.deckId === deckId && w.status === 'new')
     .sort((a, b) => a.createdAt - b.createdAt)
     .slice(0, count);
   return shuffle(oldest);
 }
 
-export function learningPool() {
-  return store.words.filter((w) => w.status === 'learning');
+export function learningPool(deckId = store.activeDeckId) {
+  return store.words.filter((w) => w.deckId === deckId && w.status === 'learning');
 }
 
 /* --- exam: multiple choice ------------------------------------------ */
 
 /**
  * One question per word: the term, plus 3 wrong translations pulled from
- * other words (length-similar where possible, so the answer isn't obvious
- * just from how long it is), all 4 shuffled.
+ * other words in the same deck (length-similar where possible, so the
+ * answer isn't obvious just from how long it is), all 4 shuffled.
  */
-export function buildExamQuestions(words) {
+export function buildExamQuestions(words, deckId) {
   return shuffle(words.map((w) => {
     const correct = w.translation;
     const candidates = [...new Set(
       store.words
-        .filter((o) => o.id !== w.id && o.translation && o.translation !== correct)
+        .filter((o) => o.deckId === deckId && o.id !== w.id && o.translation && o.translation !== correct)
         .map((o) => o.translation)
     )];
     const distractors = pickDistractors(candidates, correct, 3);

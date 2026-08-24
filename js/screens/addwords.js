@@ -13,9 +13,9 @@ let draft = null;          // null = paste step, array = preview step
 let lessonName = '';
 let afterAdd = () => {};
 
-const EXAMPLE = `առաջադրել | предлагать / выдвигать | араджадрел
-առնվազն | как минимум | арнвазн
-բարեւ | привет | барев`;
+const EXAMPLE = `word or phrase | translation | pronunciation
+another word | its translation | pronunciation
+a short phrase | its translation | pronunciation`;
 
 export function openAddWords(onDone = () => {}) {
   draft = null;
@@ -80,7 +80,9 @@ function renderPaste() {
 /* --- step 2: preview -------------------------------------------- */
 
 function renderPreview() {
-  const existing = new Set(store.words.map((w) => w.term.toLowerCase()));
+  const existing = new Set(store.words
+    .filter((w) => w.deckId === store.activeDeckId)
+    .map((w) => w.term.toLowerCase()));
   const rows = draft.map((row, i) => {
     const dup = existing.has(row.term.toLowerCase());
     return `<div class="prow" data-i="${i}">

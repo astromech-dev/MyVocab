@@ -74,6 +74,7 @@ export function renderWords(root, rerender, goBack) {
 function filtered() {
   const q = view.q.trim().toLowerCase();
   return store.words
+    .filter((w) => w.deckId === store.activeDeckId)
     .filter((w) => view.filter === 'all' || w.status === view.filter)
     .filter((w) => !view.lesson || w.lesson === view.lesson)
     .filter((w) => !q

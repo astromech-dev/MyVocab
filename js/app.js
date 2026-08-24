@@ -2,6 +2,7 @@
 
 import { on } from './dom.js';
 import { load } from './store.js';
+import { renderDeckBar } from './deckbar.js';
 import { renderOverview } from './screens/overview.js';
 import { renderWords } from './screens/words.js';
 import { openAddWords } from './screens/addwords.js';
@@ -10,6 +11,8 @@ let screen = document.getElementById('screen');
 let view = 'overview';
 
 function render() {
+  renderDeckBar(render);   // outside #screen, so it needs its own refresh call
+
   // Swap in a fresh container: delegated listeners die with the old one.
   const fresh = document.createElement('main');
   fresh.id = 'screen';

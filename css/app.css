@@ -61,6 +61,18 @@ h1, h2, h3, p { margin: 0; }
 .brand { font-weight: 650; letter-spacing: -.02em; font-size: 19px; }
 .screen { padding-top: 8px; }
 
+.deckbar { display: flex; align-items: center; gap: 8px; padding-bottom: 4px; }
+.deckbar:empty { display: none; }
+.deck-select {
+  appearance: none; -webkit-appearance: none;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--surface);
+  padding: 7px 30px 7px 14px; font-size: 14px; font-weight: 600; color: var(--ink);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238A8A93' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+.deck-select:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.deck-add { padding: 7px 12px; font-size: 14px; }
+
 /* --- buttons --------------------------------------------------- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;

@@ -6,7 +6,10 @@ learn — MyVocab just tracks where each word is.
 
 *New → Learning → Learned. No schedule, no daily limit, no waiting for tomorrow.*
 
-Currently set up for **Armenian → Russian** (word · pronunciation in Russian letters · translation).
+Works for any language pair — pick what you're learning and what you're
+translating into when you add the first one; switch between languages any
+time with the selector under the header. Each language keeps its own words
+and progress, completely separate from the others.
 
 ## Running it
 
@@ -41,9 +44,8 @@ by hand right away without waiting on a deploy. Paste a whole list, one entry
 per line:
 
 ```text
-առաջադրել | предлагать / выдвигать | араджадрел
-առնվազն | как минимум | арнвазн
-բարեւ | привет | барев
+word or phrase | translation | pronunciation
+another word | its translation | pronunciation
 ```
 
 `word or phrase | translation | pronunciation` — the pronunciation is optional, and
@@ -53,11 +55,20 @@ The preview lets you fix any field or drop a line before adding.
 A lesson name (`Lesson 12`, `Greetings`, …) is optional. It only records where the
 words came from — daily practice always mixes lessons together.
 
+## Languages
+
+Every word belongs to a language pair ("deck") — the language you're
+learning plus the one you're translating into, both free text, whatever
+you type when you create it. The selector under the header switches the
+active one; `+ Add words`, the New/Learning/Learned counts, the practice
+rotation, and the exam all only ever touch the words in that deck. Adding
+a second language doesn't affect the first one's progress at all.
+
 ## How the learning works
 
-One direction: **Armenian → Russian** — see the word, say the translation.
-(Russian → Armenian used to run alongside it; it's switched off for now —
-`DIRECTIONS` in [js/srs.js](js/srs.js) turns it back on.)
+One direction: see the word, say the translation. (The reverse direction
+used to run alongside it; it's switched off for now — `DIRECTIONS` in
+[js/srs.js](js/srs.js) turns it back on.)
 
 Every word is in one of three states:
 
@@ -75,16 +86,17 @@ Every word is in one of three states:
 plain read-through — no testing — then straight into the rotation above.
 
 **Exam** is the only thing that can *un-learn* a word: a one-shot,
-multiple-choice test over everything currently Learned (the Armenian word,
-four Russian options, one right). A miss immediately sends that word back to
+multiple-choice test over everything currently Learned (the word, four
+translation options, one right). A miss immediately sends that word back to
 Learning — proof it wasn't as solid as it looked.
 
 ## One page, no tabs
 
-Everything lives on a single screen: your New / Learning / Learned counts, a
-progress bar, the "Continue learning" / "Learn new words" buttons, exam, and
-backup. A **"See all words →"** link opens the full searchable list when you
-need to look something up or fix a typo — it's a click away, not a permanent tab.
+Everything lives on a single screen: a segmented New / Learning / Learned
+bar, a Practice row and a Learn row (whichever has words waiting leads),
+exam, and backup. A **"See all words →"** link opens the full searchable
+list when you need to look something up or fix a typo — it's a click away,
+not a permanent tab.
 
 ## Your data
 
@@ -99,10 +111,10 @@ Your Learning/Learned progress stays device-local.
 ## Layout
 
 ```
-index.html                app shell — just the header now, no nav
+index.html                app shell — header + deck selector, no nav
 css/app.css                all styling, design tokens at the top
 js/app.js                  start-up, switches between the overview and words screens
-js/config.js               the two language names
+js/deckbar.js              the language selector and "new language" sheet
 js/store.js                data model, persistence, backup, seed merging
 js/wordsformat.js          shared "word | translation | pronunciation" line parser
 js/seed.js                 word lists from lessons, shipped with the app
@@ -117,5 +129,3 @@ sw.js                       offline cache (bump CACHE after changing files)
 
 After changing any file listed in `sw.js`, bump the `CACHE` constant there so
 browsers fetch the new version instead of the cached one.
-
-Switching to a different language later: change the two names in `js/config.js`.
