@@ -7,6 +7,8 @@ import { decks, activeDeck, setActiveDeck, addDeck } from './store.js';
 const sheet = document.getElementById('sheet');
 const bar = document.getElementById('deckbar');
 
+const NEW_DECK = '__new-deck__';
+
 export function renderDeckBar(onChange) {
   const list = decks();
   const active = activeDeck();
@@ -19,17 +21,23 @@ export function renderDeckBar(onChange) {
   }
 
   bar.innerHTML = `
-    <select class="deck-select" id="deck-select" aria-label="Language">
+    <span class="deckbar-label">Vocabulary</span>
+    <select class="deck-select" id="deck-select" aria-label="Vocabulary">
       ${list.map((d) => `<option value="${esc(d.id)}" ${d.id === active?.id ? 'selected' : ''}>${esc(d.target)}</option>`).join('')}
+      <option value="${NEW_DECK}">+ Add vocabulary</option>
     </select>
-    <button class="btn btn-quiet deck-add" data-act="new-deck" aria-label="Add a language">+</button>
   `;
 
-  bar.querySelector('#deck-select').addEventListener('change', (e) => {
+  const select = bar.querySelector('#deck-select');
+  select.addEventListener('change', (e) => {
+    if (e.target.value === NEW_DECK) {
+      select.value = active?.id ?? '';
+      openNewDeck(onChange);
+      return;
+    }
     setActiveDeck(e.target.value);
     onChange();
   });
-  on(bar, '[data-act="new-deck"]', 'click', () => openNewDeck(onChange));
 }
 
 /** New language pair sheet, for adding a language once at least one already exists. */
@@ -39,7 +47,7 @@ export function openNewDeck(onChange) {
 
   sheet.innerHTML = `<div class="sheet-inner">
     <div class="sheet-head">
-      <h2>New language</h2>
+      <h2>New vocabulary</h2>
       <button class="btn btn-quiet" data-act="cancel">Cancel</button>
     </div>
     <label class="field"><span>What are you learning?</span>
