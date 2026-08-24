@@ -109,10 +109,8 @@ function renderIntro() {
     <p class="center tiny muted" style="margin-bottom:12px">New words — just read them through</p>
     <div class="flash">
       <div class="term">${esc(word.term)}</div>
-      ${word.transcription ? `<div class="translit">${esc(word.transcription)}</div>` : ''}
-      <hr>
+      ${word.transcription ? `<div class="translit">[${esc(word.transcription)}]</div>` : ''}
       <div class="translation">${esc(word.translation)}</div>
-      ${lessonTag(word)}
     </div>
     <div class="answers">
       ${session.index > 0 ? '<button class="btn btn-ghost" data-act="prev">Back</button>' : ''}
@@ -170,10 +168,9 @@ function renderCarousel() {
     <div class="flash">
       <div class="prompt-kind">${esc(TARGET_LANGUAGE)} → ${esc(NATIVE_LANGUAGE)}</div>
       <div class="term">${esc(word.term)}</div>
-      ${session.revealed ? `<hr>
-        ${word.transcription ? `<div class="translit">${esc(word.transcription)}</div>` : ''}
-        <div class="translation">${esc(word.translation)}</div>
-        ${lessonTag(word)}` : ''}
+      ${session.revealed ? `
+        ${word.transcription ? `<div class="translit">[${esc(word.transcription)}]</div>` : ''}
+        <div class="translation">${esc(word.translation)}</div>` : ''}
     </div>
     ${buttons}
   </div>`;
@@ -314,8 +311,4 @@ function progress(done, total) {
       <div class="progressbar"><i style="width:${pct}%"></i></div>
       <span class="tiny muted">${done} / ${total}</span>
     </div>`;
-}
-
-function lessonTag(word) {
-  return word.lesson ? `<div class="lesson-tag">${esc(word.lesson)}</div>` : '';
 }
