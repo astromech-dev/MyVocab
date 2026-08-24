@@ -1,8 +1,8 @@
 // One word: read it, edit it, or change how it is being learned.
 
-import { esc, on, qs, fromNow, toast } from '../dom.js';
+import { esc, on, qs, fromNow, toast, dayKey } from '../dom.js';
 import { getWord, updateWord, deleteWord, touched, lessons } from '../store.js';
-import { markLearned, learnAgain, DIRECTIONS, LEVELS_TO_LEARN } from '../srs.js';
+import { markLearned, learnAgain, DIRECTIONS, STAGE_REQS } from '../srs.js';
 
 const sheet = document.getElementById('sheet');
 
@@ -60,7 +60,7 @@ function renderView(word) {
       <li><span>Checked</span><b>${word.checks} time${word.checks === 1 ? '' : 's'}</b></li>
       <li><span>Mistakes</span><b>${word.mistakes}</b></li>
       <li><span>Last practiced</span><b>${fromNow(word.lastPracticed)}</b></li>
-      ${word.introduced ? `<li><span>Progress</span><b>${levelDots(word)}</b></li>` : ''}
+      ${word.introduced ? `<li><span>Progress</span><b>${progressLabel(word)}</b></li>` : ''}
     </ul>
   </div>`;
 
@@ -80,9 +80,14 @@ function renderView(word) {
   });
 }
 
-function levelDots(word) {
-  const level = word.dirs[DIRECTIONS[0]].level;
-  return '●'.repeat(level) + '○'.repeat(LEVELS_TO_LEARN - level);
+function progressLabel(word) {
+  if (word.status === 'learned') return 'Learned';
+  const dir = word.dirs[DIRECTIONS[0]];
+  const stageNum = dir.level + 1;
+  const req = STAGE_REQS[dir.level];
+  if (dir.dayDoneOn === dayKey()) return `Day ${stageNum} of ${STAGE_REQS.length} — done for today`;
+  const repsToday = dir.stageRepsDay === dayKey() ? dir.stageReps : 0;
+  return `Day ${stageNum} of ${STAGE_REQS.length} — ${repsToday}/${req} today`;
 }
 
 function renderEdit(word) {

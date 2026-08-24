@@ -2,11 +2,10 @@
 // New → Learning → Learned, and you decide how much to do and when.
 
 import { esc, on, plural, toast } from '../dom.js';
-import { store, counts, exportBackup, importBackup, recentActivity, activeDeck } from '../store.js';
+import { store, counts, exportBackup, importBackup, recentActivity, activeDeck, addDeck } from '../store.js';
 import { learningPool, pickNewWords } from '../srs.js';
 import { startIntro, startCarousel, startExam } from '../study.js';
 import { openAddWords } from './addwords.js';
-import { openNewDeck } from '../deckbar.js';
 
 const NEW_BATCH = 10;
 const DAYS_SHOWN = 14;
@@ -18,7 +17,7 @@ const DAYS_SHOWN = 14;
  * is a single button — the whole card is the tap target, not a pill inside it.
  */
 function actionsBlock(stats, pool) {
-  if (!stats.new && !pool.length) {
+  if (!stats.new && !pool.length && !stats.learning) {
     return `<div class="actions">
       <div class="action-card done">
         <div class="action-icon">✓</div>
@@ -34,6 +33,11 @@ function actionsBlock(stats, pool) {
         <div class="action-text"><div class="t">Words ready to review</div><div class="s">In your learning queue</div></div>
         <span class="action-go" aria-hidden="true">→</span>
       </button>`
+    : stats.learning
+    ? `<div class="action-card learning disabled">
+        <div class="action-icon">✓</div>
+        <div class="action-text"><div class="t">Practiced everything for now</div><div class="s">Come back tomorrow, or learn something new</div></div>
+      </div>`
     : `<div class="action-card learning disabled">
         <div class="action-icon">0</div>
         <div class="action-text"><div class="t">Nothing to review yet</div><div class="s">Learn some words first</div></div>
@@ -56,11 +60,27 @@ function actionsBlock(stats, pool) {
 export function renderOverview(root, rerender, openWords) {
   if (!activeDeck()) {
     root.innerHTML = `<div class="card empty">
-      <strong>Welcome to MyVocab</strong>
-      <p style="max-width:34ch;margin:0 auto 22px">Start by adding the language you're learning.</p>
-      <button class="btn btn-primary" data-act="new-deck">+ Add a language</button>
+      <strong>What are you learning?</strong>
+      <p class="small ink-2" style="max-width:32ch;margin:8px auto 22px">
+        MyVocab organizes words into dictionaries, one per language pair — each
+        with its own words and progress. Set up your first one to begin.
+      </p>
+      <div style="max-width:280px;margin:0 auto;text-align:left">
+        <label class="field" style="margin-top:0"><span>Learning</span>
+          <input class="input" id="f-target" placeholder="e.g. Spanish" autocomplete="off"></label>
+        <label class="field"><span>Translate into</span>
+          <input class="input" id="f-native" placeholder="e.g. English" autocomplete="off"></label>
+      </div>
+      <button class="btn btn-primary" style="margin-top:20px" data-act="create-deck">Create dictionary</button>
     </div>`;
-    on(root, '[data-act="new-deck"]', 'click', () => openNewDeck(rerender));
+    on(root, '[data-act="create-deck"]', 'click', () => {
+      const target = root.querySelector('#f-target').value.trim();
+      const native = root.querySelector('#f-native').value.trim();
+      if (!target || !native) { toast('Fill in both languages'); return; }
+      addDeck(target, native);
+      rerender();
+    });
+    root.querySelector('#f-target').focus();
     return;
   }
 

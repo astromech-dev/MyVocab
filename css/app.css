@@ -97,6 +97,7 @@ h1, h2, h3, p { margin: 0; }
 .btn-big { padding: 18px 28px; font-size: 17px; border-radius: 18px; width: 100%; }
 .btn-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .btn[disabled] { opacity: .45; cursor: default; }
+.btn[hidden] { display: none; }
 
 /* --- cards & typography --------------------------------------- */
 .card {

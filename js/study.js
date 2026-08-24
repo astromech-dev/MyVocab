@@ -1,8 +1,8 @@
 // Three ways to study, each its own thing:
 //  - startIntro    — read through brand-new words, no testing.
-//  - startCarousel — the endless Learning rotation, self-graded, no fixed
-//                    length; Knew pushes a card further back, Didn't know
-//                    brings it back sooner.
+//  - startCarousel — the Learning rotation, self-graded; Knew pushes a card
+//                    further back (or clears it for the day once its stage
+//                    quota is met), Didn't know brings it back sooner.
 //  - startExam     — a one-shot multiple-choice check over Learned words;
 //                    a miss demotes the word back to Learning right away.
 
@@ -36,7 +36,7 @@ export function startIntro(words, { onExit } = {}) {
 export function startCarousel(words, { onExit } = {}) {
   onClose = onExit || (() => {});
   if (!words.length) { session = { kind: 'empty', note: 'No words are in Learning right now.' }; open(); render(); return; }
-  session = { kind: 'carousel', queue: shuffle(words.map((w) => ({ wordId: w.id }))), revealed: false, reviewed: 0, promoted: 0 };
+  session = { kind: 'carousel', queue: shuffle(words.map((w) => ({ wordId: w.id }))), revealed: false, reviewed: 0, promoted: 0, doneToday: 0 };
   open(); render();
 }
 
@@ -145,10 +145,11 @@ function answerCarousel(result) {
   const current = session.queue.shift();
   const word = getWord(current.wordId);
   if (word) {
-    applyAnswer(word, 'fr', result);
+    const outcome = applyAnswer(word, 'fr', result);
     recordActivity();
     touched();
-    if (word.status === 'learned') session.promoted++;
+    if (outcome === 'learned') session.promoted++;
+    else if (outcome === 'day-complete') session.doneToday++;
     else session.queue.splice(Math.min(session.queue.length, result === 'knew' ? BACK_KNEW : BACK_UNKNOWN), 0, current);
   }
   session.reviewed++;
@@ -174,7 +175,7 @@ function renderCarousel() {
   sheet.innerHTML = `<div class="study">
     <div class="study-head">
       <button class="btn btn-quiet" data-act="close" aria-label="Stop">✕ Stop</button>
-      <span class="tiny muted" style="margin-left:auto">${plural(session.queue.length, 'word', 'words')} in rotation${session.promoted ? ` · ${session.promoted} learned` : ''}</span>
+      <span class="tiny muted" style="margin-left:auto">${plural(session.queue.length, 'word', 'words')} in rotation${session.promoted ? ` · ${session.promoted} learned` : ''}${session.doneToday ? ` · ${session.doneToday} done for today` : ''}</span>
     </div>
     <div class="flash">
       <div class="prompt-kind">${esc(deck.target)} → ${esc(deck.native)}</div>
@@ -195,8 +196,9 @@ function renderCarouselDone() {
   sheet.innerHTML = `<div class="study">
     <div class="card center">
       <div class="done-mark">✓</div>
-      <h2 class="h1" style="margin-top:10px">All caught up</h2>
-      <p class="today-label">${session.reviewed} reviewed${session.promoted ? ` · ${session.promoted} learned` : ''}</p>
+      <h2 class="h1" style="margin-top:10px">Practice complete</h2>
+      <p class="today-label">You've practiced everything for now.</p>
+      <p class="tiny muted" style="margin-top:8px">${session.reviewed} reviewed${session.promoted ? ` · ${session.promoted} learned` : ''}${session.doneToday ? ` · ${session.doneToday} done for today` : ''}</p>
     </div>
     <div class="stack" style="margin-top:16px">
       <button class="btn btn-big btn-primary" data-act="close">Done</button>

@@ -1,8 +1,12 @@
-// Learning model: New → Learning → Learned. No dates the user has to obey —
-// Learning is one continuous shuffled rotation (Knew pushes a card further
-// back, Didn't know brings it back sooner). "Learned" needs a successful
-// recall on 3 separate calendar days, spanning at least 3 days total, so a
-// burst of quick answers in one sitting can't fake it.
+// Learning model: New → Learning → Learned, in three day-stages of shrinking
+// size — 3 successful Knews, then 2, then 1, each stage's quota completed on
+// its own calendar day. Hit today's quota and the word drops out of Practice
+// until a new day, so a burst of quick answers in one sitting can't fake
+// "Learned" — only correct recall on 3 separate days can.
+//
+// A miss costs more the further along the word is: on the 3-rep stage it
+// just keeps circulating; on the 2-rep stage the stage restarts from zero;
+// on the 1-rep stage the word is pushed back a whole stage.
 //
 // Exam is separate: a one-shot, multiple-choice check over words already
 // marked Learned. Getting one wrong immediately demotes it back to Learning
@@ -11,34 +15,57 @@
 import { shuffle, dayKey } from './dom.js';
 import { store } from './store.js';
 
-const DAY = 86400000;
-export const LEVELS_TO_LEARN = 3;
-const MIN_AGE_DAYS = 3;
+// Successes needed per day-stage: 3 on the word's first day in Learning, 2
+// the next day it's practiced, 1 the day after that — then it's Learned.
+export const STAGE_REQS = [3, 2, 1];
 
 // Russian → Armenian ('rf') is switched off for now — add it back here to
 // bring back speaking practice. The data model already tracks it per word.
 export const DIRECTIONS = ['fr'];
 
-/** Records one answer for one direction: 'knew' | 'unknown'. Mutates the word. */
+/**
+ * Records one answer for one direction: 'knew' | 'unknown'. Mutates the word
+ * and returns what happened to it: 'learned' (just finished the last stage),
+ * 'day-complete' (finished today's quota, more stages remain), or 'continue'
+ * (still mid-stage — keep it circulating).
+ */
 export function applyAnswer(word, kind, answer, now = Date.now()) {
   const dir = word.dirs[kind];
   dir.reps++;
   word.checks++;
   word.lastPracticed = now;
+  const today = dayKey(now);
+  let outcome = 'continue';
 
   if (answer === 'unknown') {
-    dir.level = Math.max(0, dir.level - 1);
     word.mistakes++;
+    if (dir.level === STAGE_REQS.length - 1) {
+      // Miss on the last stage: not Learned yet, back a whole stage.
+      dir.level = Math.max(0, dir.level - 1);
+      dir.stageReps = 0;
+      dir.stageRepsDay = null;
+    } else if (dir.level > 0) {
+      // Miss mid-way through: redo this stage's quota from scratch.
+      dir.stageReps = 0;
+      dir.stageRepsDay = null;
+    }
+    // Miss on the very first stage: no penalty beyond not counting — the
+    // word just keeps circulating today.
   } else {
-    const today = dayKey(now);
-    if (dir.lastLevelUpDay !== today) {
-      dir.level = Math.min(LEVELS_TO_LEARN, dir.level + 1);
-      dir.lastLevelUpDay = today;
+    if (dir.stageRepsDay !== today) { dir.stageReps = 0; dir.stageRepsDay = today; }
+    dir.stageReps++;
+    if (dir.stageReps >= STAGE_REQS[dir.level]) {
+      dir.level++;
+      dir.dayDoneOn = today;
+      dir.stageReps = 0;
+      dir.stageRepsDay = null;
+      outcome = dir.level >= STAGE_REQS.length ? 'learned' : 'day-complete';
     }
   }
 
   refreshStatus(word, now);
   word.updatedAt = now;
+  return outcome;
 }
 
 export function markIntroduced(word, now = Date.now()) {
@@ -53,18 +80,20 @@ export function markIntroduced(word, now = Date.now()) {
 
 export function refreshStatus(word, now = Date.now()) {
   if (!word.introduced) { word.status = 'new'; return; }
-  const learned = DIRECTIONS.every((k) => word.dirs[k].level >= LEVELS_TO_LEARN)
-    && word.learningStartedAt && (now - word.learningStartedAt) >= MIN_AGE_DAYS * DAY;
+  const learned = DIRECTIONS.every((k) => word.dirs[k].level >= STAGE_REQS.length);
   word.status = learned ? 'learned' : 'learning';
 }
 
-/** Manual override: "Mark as learned" — skips the day/age gates. */
+/** Manual override: "Mark as learned" — skips the day-stage gates. */
 export function markLearned(word, now = Date.now()) {
   word.introduced = true;
   if (!word.learningStartedAt) word.learningStartedAt = now;
   for (const k of DIRECTIONS) {
-    word.dirs[k].level = LEVELS_TO_LEARN;
-    word.dirs[k].lastLevelUpDay = dayKey(now);
+    const dir = word.dirs[k];
+    dir.level = STAGE_REQS.length;
+    dir.stageReps = 0;
+    dir.stageRepsDay = null;
+    dir.dayDoneOn = null;
   }
   word.status = 'learned';
   word.updatedAt = now;
@@ -74,8 +103,11 @@ export function markLearned(word, now = Date.now()) {
 export function learnAgain(word, now = Date.now()) {
   word.introduced = true;
   for (const k of DIRECTIONS) {
-    word.dirs[k].level = 0;
-    word.dirs[k].lastLevelUpDay = null;
+    const dir = word.dirs[k];
+    dir.level = 0;
+    dir.stageReps = 0;
+    dir.stageRepsDay = null;
+    dir.dayDoneOn = null;
   }
   word.status = 'learning';
   word.updatedAt = now;
@@ -95,8 +127,13 @@ export function pickNewWords(count, deckId = store.activeDeckId) {
   return shuffle(oldest);
 }
 
-export function learningPool(deckId = store.activeDeckId) {
-  return store.words.filter((w) => w.deckId === deckId && w.status === 'learning');
+/** Learning words still eligible for Practice today — i.e. not already at
+ * today's per-stage quota. A word that hit its quota reappears once the
+ * calendar day turns over, not before. */
+export function learningPool(deckId = store.activeDeckId, now = Date.now()) {
+  const today = dayKey(now);
+  return store.words.filter((w) => w.deckId === deckId && w.status === 'learning'
+    && DIRECTIONS.some((k) => w.dirs[k].dayDoneOn !== today));
 }
 
 /* --- exam: multiple choice ------------------------------------------ */

@@ -135,8 +135,14 @@ function mergeSeed() {
 /** Fills in anything a future/older version might be missing. */
 function normalizeWord(w) {
   const dir = (d) => ({
+    // A word migrating from the old one-rep-per-day model already carries a
+    // meaningful level (0-3): each point there took a separate calendar day
+    // to earn, same as a completed stage here, so it carries over as-is —
+    // the word just resumes at that stage's quota instead of restarting.
     level: Number(d?.level) || 0,
-    lastLevelUpDay: d?.lastLevelUpDay ?? null,
+    stageReps: Number(d?.stageReps) || 0,
+    stageRepsDay: d?.stageRepsDay ?? null,
+    dayDoneOn: d?.dayDoneOn ?? null,
     reps: Number(d?.reps) || 0,
   });
   return {

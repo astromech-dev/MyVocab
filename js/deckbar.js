@@ -11,9 +11,10 @@ export function renderDeckBar(onChange) {
   const list = decks();
   const active = activeDeck();
 
+  // Before any deck exists, Overview itself is the "create your first
+  // dictionary" step — nothing for this bar to show yet.
   if (!list.length) {
-    bar.innerHTML = `<button class="btn btn-quiet deck-add" data-act="new-deck">+ Add a language</button>`;
-    on(bar, '[data-act="new-deck"]', 'click', () => openNewDeck(onChange));
+    bar.innerHTML = '';
     return;
   }
 
@@ -31,7 +32,7 @@ export function renderDeckBar(onChange) {
   on(bar, '[data-act="new-deck"]', 'click', () => openNewDeck(onChange));
 }
 
-/** New language pair sheet — exported so the "no deck yet" screen can open it too. */
+/** New language pair sheet, for adding a language once at least one already exists. */
 export function openNewDeck(onChange) {
   sheet.hidden = false;
   document.body.style.overflow = 'hidden';
