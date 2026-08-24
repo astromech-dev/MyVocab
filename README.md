@@ -1,9 +1,10 @@
 # MyVocab
 
 A small personal app for words from your own language lessons.
-You add what your teacher gave you today; the app decides what you repeat tomorrow.
+You add what your teacher gave you today; you decide when and how much to
+learn — MyVocab just tracks where each word is.
 
-*My words from my lessons → learning → checking → regular review.*
+*New → Learning → Learned. No schedule, no daily limit, no waiting for tomorrow.*
 
 Currently set up for **Armenian → Russian** (word · pronunciation in Russian letters · translation).
 
@@ -58,28 +59,32 @@ One direction: **Armenian → Russian** — see the word, say the translation.
 (Russian → Armenian used to run alongside it; it's switched off for now —
 `DIRECTIONS` in [js/srs.js](js/srs.js) turns it back on.)
 
-Answers move a card along a ladder of intervals (`0 · 1 · 2 · 4 · 9 · 21 · 45 · 90` days):
+Every word is in one of three states:
 
-| Answer | Effect |
-| --- | --- |
-| **Knew** | one step up — comes back later |
-| **Didn't know** | back to the start — returns in the next sessions |
+- **New** — added, not started yet.
+- **Learning** — in the rotation. Sitting in one continuous shuffled queue:
+  answer **Knew** and the card goes further back in the queue; answer
+  **Didn't know** and it comes back sooner. No fixed session length, no
+  daily cap — do 5 words or 100, stop whenever, come back whenever.
+- **Learned** — recalled successfully on **3 separate calendar days**,
+  spanning **at least 3 days** since you started learning it (so a burst of
+  quick answers late one night can't fake three "different days"). A wrong
+  answer along the way knocks the count down by one, not back to zero.
 
-A word becomes **Learned** once it's far along the ladder, and drops back to
-**Learning** by itself as soon as you start missing it. New words are shown
-first in a plain read-through deck, then join normal checking.
+**Learn new words** takes a batch from New (pick 5 / 10 / 20) through a
+plain read-through — no testing — then straight into the rotation above.
 
-The one page collects everything due, recent mistakes first, plus a batch of
-new words (defaults: 24 cards, 10 new — `settings` in [js/store.js](js/store.js),
-not editable in-app on purpose — there's no settings screen to keep it simple).
+**Exam** is the only thing that can *un-learn* a word: a one-shot,
+multiple-choice test over everything currently Learned (the Armenian word,
+four Russian options, one right). A miss immediately sends that word back to
+Learning — proof it wasn't as solid as it looked.
 
 ## One page, no tabs
 
-Everything lives on a single screen: today's practice, your word counts, an
-exam (pick "All words" or specific lessons, one card per word, score at the
-end), the last two weeks, and backup. A **"See all words →"** link opens the
-full searchable list when you need to look something up or fix a typo — it's
-a click away, not a permanent tab.
+Everything lives on a single screen: your New / Learning / Learned counts, a
+progress bar, the "Continue learning" / "Learn new words" buttons, exam, and
+backup. A **"See all words →"** link opens the full searchable list when you
+need to look something up or fix a typo — it's a click away, not a permanent tab.
 
 ## Your data
 
@@ -89,25 +94,25 @@ no backend, nothing leaves the device. Clearing site data erases it, so use
 
 The word lists themselves also live in [js/seed.js](js/seed.js), which is part of the
 deployed site — so they're backed up in git history independently of any one device.
-Your practice progress (schedule, streaks, session history) stays device-local.
+Your Learning/Learned progress stays device-local.
 
 ## Layout
 
 ```
-index.html            app shell — just the header now, no nav
-css/app.css           all styling, design tokens at the top
-js/app.js             start-up, switches between the overview and words screens
-js/config.js          the two language names
-js/store.js           data model, persistence, history, backup, seed merging
-js/wordsformat.js     shared "word | translation | pronunciation" line parser
-js/seed.js            word lists from lessons, shipped with the app
-js/srs.js             scheduling and building the daily/exam queues
-js/study.js           the study session: intro cards, flashcards, results
-js/screens/overview.js the one page: today, stats, exam, history, backup
-js/screens/words.js    full word list, reached via a link, not a tab
-js/screens/addwords.js "+ Add words" sheet
-js/screens/worddetail.js one word's detail sheet
-sw.js                  offline cache (bump CACHE after changing files)
+index.html                app shell — just the header now, no nav
+css/app.css                all styling, design tokens at the top
+js/app.js                  start-up, switches between the overview and words screens
+js/config.js               the two language names
+js/store.js                data model, persistence, backup, seed merging
+js/wordsformat.js          shared "word | translation | pronunciation" line parser
+js/seed.js                 word lists from lessons, shipped with the app
+js/srs.js                  New/Learning/Learned rules, exam question building
+js/study.js                three study modes: intro, the carousel, the exam
+js/screens/overview.js     the one page: counts, actions, exam, backup
+js/screens/words.js        full word list, reached via a link, not a tab
+js/screens/addwords.js     "+ Add words" sheet
+js/screens/worddetail.js   one word's detail sheet
+sw.js                       offline cache (bump CACHE after changing files)
 ```
 
 After changing any file listed in `sw.js`, bump the `CACHE` constant there so

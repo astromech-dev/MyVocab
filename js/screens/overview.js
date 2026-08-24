@@ -1,16 +1,14 @@
-// Overview — the whole app on one page: no tabs. Start today's practice,
-// see your stats, run an exam, browse words (via a link), back up.
+// Overview — the whole app on one page. No "today", no schedule: just
+// New → Learning → Learned, and you decide how much to do and when.
 
-import { esc, on, qs, dayKey, plural, toast, shuffle } from '../dom.js';
-import { store, counts, today as todayStats, streak, lessons, exportBackup, importBackup } from '../store.js';
-import { todayPlan, buildExam, mistakeCards } from '../srs.js';
-import { startSession } from '../study.js';
+import { esc, on, plural, toast } from '../dom.js';
+import { store, counts, exportBackup, importBackup } from '../store.js';
+import { learningPool, pickNewWords } from '../srs.js';
+import { startIntro, startCarousel, startExam } from '../study.js';
 import { openAddWords } from './addwords.js';
 
-const DAY = 86400000;
-const DAYS_SHOWN = 14;
-
-const exam = { all: true, lessons: new Set() };
+const NEW_COUNTS = [5, 10, 20];
+const view = { newCount: 10 };
 
 export function renderOverview(root, rerender, openWords) {
   const stats = counts();
@@ -18,82 +16,39 @@ export function renderOverview(root, rerender, openWords) {
   if (!stats.total) {
     root.innerHTML = `<div class="card empty">
       <strong>No words yet</strong>
-      <p style="max-width:34ch;margin:0 auto 22px">Add the words from your last lesson and MyVocab
-        will take care of when to repeat them.</p>
+      <p style="max-width:34ch;margin:0 auto 22px">Add the words from your last lesson and start
+        learning them whenever you like.</p>
       <button class="btn btn-primary" data-act="add">+ Add words</button>
     </div>`;
     on(root, '[data-act="add"]', 'click', () => openAddWords(rerender));
     return;
   }
 
-  const plan = todayPlan();
-  const done = todayStats();
-  const days = streak();
-  const known = lessons();
-  const mistakes = mistakeCards();
-  const history = lastDays(DAYS_SHOWN);
-  const peak = Math.max(1, ...history.map((d) => d.practiced));
-  const streakLine = days >= 2 ? `<p class="streak">${days} days in a row</p>` : '';
-
-  const todayBlock = !plan.words
-    ? `<div class="card today-card">
-        <div class="done-mark">✓</div>
-        <h1 class="h1" style="margin-top:12px">Done for today</h1>
-        <p class="today-label">${done.practiced
-          ? `${done.practiced} word${done.practiced === 1 ? '' : 's'} practiced today`
-          : 'Nothing is due right now'}</p>
-        ${streakLine}
-      </div>`
-    : `<div class="card today-card">
-        <p class="section-title" style="margin:0 0 8px">Today</p>
-        <div class="today-count">${plan.words}</div>
-        <p class="today-label">word${plan.words === 1 ? '' : 's'} to practice</p>
-        <div class="today-split">
-          ${plan.reviews ? `<span><i class="dot dot-blue"></i><b>${plan.reviews}</b> to review</span>` : ''}
-          ${plan.newCount ? `<span><i class="dot dot-orange"></i><b>${plan.newCount}</b> new</span>` : ''}
-        </div>
-        <button class="btn btn-big btn-primary" data-act="start">Start</button>
-        ${done.practiced ? `<p class="tiny muted" style="margin-top:14px">${done.practiced} already practiced today</p>` : ''}
-        ${streakLine}
-      </div>`;
+  const pool = learningPool();
+  const learnedPct = stats.total ? Math.round((stats.learned / stats.total) * 100) : 0;
 
   root.innerHTML = `
-    ${todayBlock}
-    ${mistakes.length ? `<div class="center" style="margin-top:14px">
-      <button class="btn btn-ghost" data-act="mistakes">Practice ${plural(mistakes.length, 'mistake', 'mistakes')}</button>
-    </div>` : ''}
-
-    <p class="section-title">Your words</p>
-    <div class="tiles">
-      <div class="tile"><b>${stats.total}</b><span>Total</span></div>
-      <div class="tile warm"><b>${stats.new}</b><span>New, not yet learned</span></div>
-      <div class="tile accent"><b>${stats.learning}</b><span>Learning</span></div>
-      <div class="tile"><b>${stats.learned}</b><span>Learned</span></div>
+    <div class="card today-card">
+      <div class="today-count">${stats.learned}</div>
+      <p class="today-label">of ${stats.total} learned</p>
+      <div class="progressbar" style="margin:16px 0 18px"><i style="width:${learnedPct}%"></i></div>
+      <div class="today-split">
+        <span><i class="dot dot-orange"></i><b>${stats.new}</b> new</span>
+        <span><i class="dot dot-blue"></i><b>${stats.learning}</b> learning</span>
+      </div>
+      ${primaryBlock(stats, pool)}
     </div>
+
     <p class="count-line"><a href="#" data-act="words">See all words →</a></p>
 
     <p class="section-title">Exam</p>
     <div class="card">
-      <p class="small ink-2" style="margin-bottom:6px">One card per word, score at the end.</p>
-      ${known.length ? `<div class="checks">
-        <label><input type="checkbox" id="exam-all" ${exam.all ? 'checked' : ''}> <b>All words</b></label>
-        ${known.map((l) => `<label><input type="checkbox" data-exam-lesson="${esc(l)}"
-          ${exam.lessons.has(l) ? 'checked' : ''} ${exam.all ? 'disabled' : ''}> ${esc(l)}</label>`).join('')}
-      </div>` : ''}
-      <p class="hint" id="exam-count"></p>
-      <button class="btn btn-primary" data-act="exam" style="margin-top:10px">Start exam</button>
-    </div>
-
-    <p class="section-title">Last ${DAYS_SHOWN} days</p>
-    <div class="card">
-      <div class="bars">
-        ${history.map((d) => `<div class="${d.practiced ? 'on' : ''}"
-          style="height:${Math.round((d.practiced / peak) * 100)}%"
-          title="${esc(d.key)}: ${d.practiced}"></div>`).join('')}
-      </div>
-      <div class="bars-x">
-        ${history.map((d, i) => `<span>${i === 0 || i === history.length - 1 ? d.label : ''}</span>`).join('')}
-      </div>
+      ${stats.learned > 0
+        ? `<p class="small ink-2">Test how well you remember your learned words.</p>
+           <p class="tiny muted" style="margin-top:4px">${plural(stats.learned, 'learned word', 'learned words')}</p>
+           <button class="btn btn-primary" data-act="exam" style="margin-top:12px">Start exam</button>`
+        : `<p class="small ink-2">Learn some words first to unlock the exam.</p>
+           <button class="btn btn-primary" data-act="exam" style="margin-top:12px" disabled>Start exam</button>`}
     </div>
 
     <p class="section-title">Backup</p>
@@ -109,24 +64,26 @@ export function renderOverview(root, rerender, openWords) {
   `;
 
   on(root, '[data-act="add"]', 'click', () => openAddWords(rerender));
-
-  on(root, '[data-act="start"]', 'click', () => {
-    const fresh = todayPlan();
-    startSession({ title: 'Today', mode: 'today', intro: fresh.intro, cards: fresh.cards, onExit: rerender });
-  });
-
-  on(root, '[data-act="mistakes"]', 'click', () => {
-    startSession({ title: 'Mistakes', mode: 'mistakes', cards: shuffle(mistakeCards()), onExit: rerender });
-  });
-
   on(root, '[data-act="words"]', 'click', (el, e) => { e.preventDefault(); openWords(); });
+
+  on(root, '[data-act="continue"]', 'click', () => startCarousel(learningPool(), { onExit: rerender }));
+
+  on(root, '[data-new-count]', 'click', (el) => { view.newCount = Number(el.dataset.newCount); rerender(); });
+  on(root, '[data-act="learn-new"]', 'click', () => {
+    startIntro(pickNewWords(view.newCount), { onExit: rerender });
+  });
+
+  on(root, '[data-act="exam"]', 'click', () => {
+    if (!stats.learned) return;
+    startExam(store.words.filter((w) => w.status === 'learned'), { onExit: rerender });
+  });
 
   on(root, '[data-act="export"]', 'click', () => { exportBackup(); toast('Backup saved'); });
   on(root, '[data-act="import"]', 'click', () => root.querySelector('#file').click());
   root.querySelector('#file').addEventListener('change', async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    if (!confirm('Importing replaces all words and history currently in this browser. Continue?')) {
+    if (!confirm('Importing replaces all words and progress currently in this browser. Continue?')) {
       event.target.value = '';
       return;
     }
@@ -139,47 +96,40 @@ export function renderOverview(root, rerender, openWords) {
     }
     event.target.value = '';
   });
-
-  qs(root, '#exam-all')?.addEventListener('change', (e) => {
-    exam.all = e.target.checked;
-    if (exam.all) exam.lessons.clear();
-    rerender();
-  });
-  on(root, '[data-exam-lesson]', 'change', (el) => {
-    const name = el.dataset.examLesson;
-    el.checked ? exam.lessons.add(name) : exam.lessons.delete(name);
-    updateExamCount(root);
-  });
-  updateExamCount(root);
-
-  on(root, '[data-act="exam"]', 'click', () => {
-    startSession({ title: 'Exam', mode: 'exam', exam: true, ...buildExam(examWords()), onExit: rerender });
-  });
 }
 
-function examWords() {
-  const all = store.words.filter((w) => w.introduced || w.status !== 'new');
-  if (exam.all || !exam.lessons.size) return all;
-  return all.filter((w) => exam.lessons.has(w.lesson));
-}
-
-function updateExamCount(root) {
-  const node = qs(root, '#exam-count');
-  if (!node) return;
-  const n = examWords().length;
-  node.textContent = n ? `${plural(n, 'word', 'words')} selected` : 'No words selected yet.';
-}
-
-function lastDays(n) {
-  const out = [];
-  for (let i = n - 1; i >= 0; i--) {
-    const ts = Date.now() - i * DAY;
-    const key = dayKey(ts);
-    out.push({
-      key,
-      label: new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
-      practiced: store.days[key]?.practiced || 0,
-    });
+function primaryBlock(stats, pool) {
+  if (pool.length > 0) {
+    return `
+      <button class="btn btn-big btn-primary" data-act="continue">Continue learning</button>
+      <p class="tiny muted" style="margin-top:10px">${plural(pool.length, 'word', 'words')} in rotation</p>
+      ${stats.new > 0 ? newWordsPicker(stats.new, true) : ''}
+    `;
   }
-  return out;
+  if (stats.new > 0) {
+    return newWordsPicker(stats.new, false);
+  }
+  return `
+    <p class="today-label">All caught up</p>
+    <div class="btn-row center" style="margin-top:14px;justify-content:center">
+      <button class="btn btn-ghost" data-act="exam">Start an exam</button>
+      <button class="btn btn-ghost" data-act="add">Add words</button>
+    </div>
+  `;
+}
+
+function newWordsPicker(newTotal, secondary) {
+  const n = Math.min(view.newCount, newTotal);
+  return `
+    <div style="margin-top:${secondary ? '24px' : '0'}">
+      ${secondary ? '<p class="tiny muted" style="margin-bottom:10px">or</p>' : ''}
+      <div class="chips center" style="justify-content:center">
+        ${NEW_COUNTS.map((c) => `<button class="chip" data-new-count="${c}" aria-pressed="${view.newCount === c}">${c}</button>`).join('')}
+      </div>
+      <button class="btn btn-big ${secondary ? 'btn-ghost' : 'btn-primary'}" data-act="learn-new" style="margin-top:10px">
+        Learn ${plural(n, 'new word', 'new words')}
+      </button>
+      <p class="tiny muted" style="margin-top:8px">${plural(newTotal, 'word', 'words')} waiting</p>
+    </div>
+  `;
 }

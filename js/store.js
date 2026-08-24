@@ -1,19 +1,14 @@
 // The whole database: one JSON blob in localStorage.
 // Shape is intentionally flat and boring so it stays easy to migrate.
 
-import { dayKey } from './dom.js';
 import { parseWordLines } from './wordsformat.js';
 import { LESSONS as SEED } from './seed.js';
 
 const KEY = 'myvocab.v1';
-const MAX_SESSIONS = 300;
 
 export const store = {
-  version: 1,
+  version: 2,
   words: [],
-  sessions: [],   // recent session results (newest last)
-  days: {},       // 'YYYY-MM-DD' -> { practiced, knew, almost, unknown }
-  settings: { newPerDay: 10, dailyTarget: 24 },
   seedMerged: [],  // lowercased terms already pulled in from seed.js, ever
 };
 
@@ -60,10 +55,6 @@ export function load() {
 function adopt(data) {
   if (!data || typeof data !== 'object') return;
   store.words = Array.isArray(data.words) ? data.words.map(normalizeWord) : [];
-  store.sessions = Array.isArray(data.sessions) ? data.sessions.slice(-MAX_SESSIONS) : [];
-  store.days = data.days && typeof data.days === 'object' ? data.days : {};
-  // Not user-editable (no settings screen), so always take these from code —
-  // otherwise a value saved from an old browser session would stick forever.
   store.seedMerged = Array.isArray(data.seedMerged) ? data.seedMerged : [];
 }
 
@@ -102,11 +93,9 @@ function mergeSeed() {
 /** Fills in anything a future/older version might be missing. */
 function normalizeWord(w) {
   const dir = (d) => ({
-    step: Number(d?.step) || 0,
-    due: d?.due ?? null,
+    level: Number(d?.level) || 0,
+    lastLevelUpDay: d?.lastLevelUpDay ?? null,
     reps: Number(d?.reps) || 0,
-    lapses: Number(d?.lapses) || 0,
-    wrong: Boolean(d?.wrong),
   });
   return {
     id: w.id || uid(),
@@ -117,6 +106,7 @@ function normalizeWord(w) {
     status: ['new', 'learning', 'learned'].includes(w.status) ? w.status : 'new',
     introduced: Boolean(w.introduced),
     introViews: Number(w.introViews) || 0,
+    learningStartedAt: w.learningStartedAt ?? null,
     dirs: { fr: dir(w.dirs?.fr), rf: dir(w.dirs?.rf) },
     checks: Number(w.checks) || 0,
     mistakes: Number(w.mistakes) || 0,
@@ -174,42 +164,6 @@ export function counts() {
   return c;
 }
 
-/* --- history ---------------------------------------------------- */
-
-export function recordSession(result) {
-  const key = dayKey();
-  const day = store.days[key] || { practiced: 0, knew: 0, almost: 0, unknown: 0 };
-  day.practiced += result.counts.knew + result.counts.almost + result.counts.unknown;
-  day.knew += result.counts.knew;
-  day.almost += result.counts.almost;
-  day.unknown += result.counts.unknown;
-  store.days[key] = day;
-
-  store.sessions.push({
-    at: Date.now(),
-    mode: result.mode,
-    title: result.title,
-    counts: result.counts,
-  });
-  if (store.sessions.length > MAX_SESSIONS) store.sessions = store.sessions.slice(-MAX_SESSIONS);
-  save({ immediate: true });
-  notify();
-}
-
-export function today() {
-  return store.days[dayKey()] || { practiced: 0, knew: 0, almost: 0, unknown: 0 };
-}
-
-/** Consecutive days with practice, counted back from today (or yesterday). */
-export function streak() {
-  const DAY = 86400000;
-  let cursor = Date.now();
-  if (!(store.days[dayKey(cursor)]?.practiced > 0)) cursor -= DAY;
-  let n = 0;
-  while (store.days[dayKey(cursor)]?.practiced > 0) { n++; cursor -= DAY; }
-  return n;
-}
-
 /* --- backup ----------------------------------------------------- */
 
 export function exportBackup() {
@@ -217,7 +171,7 @@ export function exportBackup() {
   const url = URL.createObjectURL(new Blob([payload], { type: 'application/json' }));
   const a = document.createElement('a');
   a.href = url;
-  a.download = `myvocab-backup-${dayKey()}.json`;
+  a.download = `myvocab-backup-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

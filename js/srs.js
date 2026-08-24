@@ -1,50 +1,43 @@
-// Spaced repetition — one schedule per word, per direction.
+// Learning model: New → Learning → Learned. No dates the user has to obey —
+// Learning is one continuous shuffled rotation (Knew pushes a card further
+// back, Didn't know brings it back sooner). "Learned" needs a successful
+// recall on 3 separate calendar days, spanning at least 3 days total, so a
+// burst of quick answers in one sitting can't fake it.
 //
-// Armenian → Russian: see the word, say the translation. Each direction
-// sits on its own step; each step is an interval in days. Knowing it moves
-// one step up, not knowing resets it to the start.
+// Exam is separate: a one-shot, multiple-choice check over words already
+// marked Learned. Getting one wrong immediately demotes it back to Learning
+// — Exam is the only thing that can un-learn a word.
 
-import { startOfDay, shuffle } from './dom.js';
+import { shuffle, dayKey } from './dom.js';
 import { store } from './store.js';
 
 const DAY = 86400000;
-const STEP_DAYS = [0, 1, 2, 4, 9, 21, 45, 90];
-const LEARNED_STEP = 4;          // 9 days apart counts as "known"
+export const LEVELS_TO_LEARN = 3;
+const MIN_AGE_DAYS = 3;
 
 // Russian → Armenian ('rf') is switched off for now — add it back here to
 // bring back speaking practice. The data model already tracks it per word.
 export const DIRECTIONS = ['fr'];
 
-function dirDue(dir, now = Date.now()) {
-  return dir.due == null || dir.due <= startOfDay(now) + DAY - 1;
-}
-
-/** Records one answer for one direction: 'knew' | 'almost' | 'unknown'. Mutates the word. */
+/** Records one answer for one direction: 'knew' | 'unknown'. Mutates the word. */
 export function applyAnswer(word, kind, answer, now = Date.now()) {
   const dir = word.dirs[kind];
   dir.reps++;
   word.checks++;
-  word.introduced = true;
   word.lastPracticed = now;
 
   if (answer === 'unknown') {
-    dir.step = 0;
-    dir.lapses++;
-    dir.wrong = true;
+    dir.level = Math.max(0, dir.level - 1);
     word.mistakes++;
-    dir.due = now;                                  // comes back straight away
-  } else if (answer === 'almost') {
-    dir.step = Math.max(0, dir.step - 1);
-    dir.wrong = true;
-    word.mistakes++;
-    dir.due = now + STEP_DAYS[dir.step] * DAY;
   } else {
-    dir.step = Math.min(dir.step + 1, STEP_DAYS.length - 1);
-    dir.wrong = false;
-    dir.due = now + STEP_DAYS[dir.step] * DAY;
+    const today = dayKey(now);
+    if (dir.lastLevelUpDay !== today) {
+      dir.level = Math.min(LEVELS_TO_LEARN, dir.level + 1);
+      dir.lastLevelUpDay = today;
+    }
   }
 
-  refreshStatus(word);
+  refreshStatus(word, now);
   word.updatedAt = now;
 }
 
@@ -52,94 +45,82 @@ export function markIntroduced(word, now = Date.now()) {
   word.introViews++;
   if (!word.introduced) {
     word.introduced = true;
+    word.learningStartedAt = now;
     word.updatedAt = now;
-    refreshStatus(word);
+    refreshStatus(word, now);
   }
 }
 
-export function refreshStatus(word) {
+export function refreshStatus(word, now = Date.now()) {
   if (!word.introduced) { word.status = 'new'; return; }
-  const bothLearned = DIRECTIONS.every((k) => word.dirs[k].step >= LEARNED_STEP);
-  word.status = bothLearned ? 'learned' : 'learning';
+  const learned = DIRECTIONS.every((k) => word.dirs[k].level >= LEVELS_TO_LEARN)
+    && word.learningStartedAt && (now - word.learningStartedAt) >= MIN_AGE_DAYS * DAY;
+  word.status = learned ? 'learned' : 'learning';
 }
 
-/** Manual override: "Mark as learned" — pushes both directions past the bar. */
+/** Manual override: "Mark as learned" — skips the day/age gates. */
 export function markLearned(word, now = Date.now()) {
   word.introduced = true;
+  if (!word.learningStartedAt) word.learningStartedAt = now;
   for (const k of DIRECTIONS) {
-    const dir = word.dirs[k];
-    dir.step = Math.max(dir.step, LEARNED_STEP);
-    dir.wrong = false;
-    dir.due = now + STEP_DAYS[dir.step] * DAY;
+    word.dirs[k].level = LEVELS_TO_LEARN;
+    word.dirs[k].lastLevelUpDay = dayKey(now);
   }
-  refreshStatus(word);
+  word.status = 'learned';
   word.updatedAt = now;
 }
 
-/** Manual override: "Learn again" — both directions back into rotation from scratch. */
+/** Manual override, and what an Exam miss does: back to Learning from scratch. */
 export function learnAgain(word, now = Date.now()) {
   word.introduced = true;
   for (const k of DIRECTIONS) {
-    const dir = word.dirs[k];
-    dir.step = 0;
-    dir.wrong = false;
-    dir.due = now;
+    word.dirs[k].level = 0;
+    word.dirs[k].lastLevelUpDay = null;
   }
-  refreshStatus(word);
+  word.status = 'learning';
   word.updatedAt = now;
 }
 
-/** Earliest of the two directions' next review; null means "due now". */
-export function nextDue(word) {
-  const dues = DIRECTIONS.map((k) => word.dirs[k].due);
-  if (dues.some((d) => d == null)) return null;
-  return Math.min(...dues);
-}
+/* --- picking words ------------------------------------------------- */
 
-/* --- building queues -------------------------------------------- */
-
-/**
- * Today's session: everything due in either direction, recent mistakes
- * first, plus a few new words. Returns { intro: Word[], cards: Card[] }.
- */
-export function buildToday(now = Date.now()) {
-  const { newPerDay, dailyTarget } = store.settings;
-
-  const due = [];
-  for (const w of store.words) {
-    if (!w.introduced) continue;
-    for (const k of DIRECTIONS) {
-      const dir = w.dirs[k];
-      if (dirDue(dir, now)) due.push({ wordId: w.id, kind: k, wrong: dir.wrong, due: dir.due ?? 0 });
-    }
-  }
-  due.sort((a, b) => Number(b.wrong) - Number(a.wrong) || a.due - b.due);
-
-  const intro = store.words
+/** Oldest-added New words first, for "Learn new words". */
+export function pickNewWords(count) {
+  return store.words
     .filter((w) => w.status === 'new')
     .sort((a, b) => a.createdAt - b.createdAt)
-    .slice(0, newPerDay);
-
-  return { intro, cards: due.slice(0, dailyTarget).map(({ wordId, kind }) => ({ wordId, kind })) };
+    .slice(0, count);
 }
 
-/** Counts for the Today screen. */
-export function todayPlan(now = Date.now()) {
-  const { intro, cards } = buildToday(now);
-  return { intro, cards, reviews: cards.length, newCount: intro.length, words: cards.length + intro.length };
+export function learningPool() {
+  return store.words.filter((w) => w.status === 'learning');
 }
 
-/** Exam practice: one card per word, a random direction, score at the end. */
-export function buildExam(words) {
-  const cards = words.map((w) => ({
-    wordId: w.id,
-    kind: DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)],
+/* --- exam: multiple choice ------------------------------------------ */
+
+/**
+ * One question per word: the term, plus 3 wrong translations pulled from
+ * other words (length-similar where possible, so the answer isn't obvious
+ * just from how long it is), all 4 shuffled.
+ */
+export function buildExamQuestions(words) {
+  return shuffle(words.map((w) => {
+    const correct = w.translation;
+    const candidates = [...new Set(
+      store.words
+        .filter((o) => o.id !== w.id && o.translation && o.translation !== correct)
+        .map((o) => o.translation)
+    )];
+    const distractors = pickDistractors(candidates, correct, 3);
+    const options = shuffle([correct, ...distractors]);
+    return { wordId: w.id, options, correctIndex: options.indexOf(correct) };
   }));
-  return { intro: [], cards: shuffle(cards) };
 }
 
-export function mistakeCards(words = store.words) {
-  const cards = [];
-  for (const w of words) for (const k of DIRECTIONS) if (w.dirs[k].wrong) cards.push({ wordId: w.id, kind: k });
-  return cards;
+function pickDistractors(candidates, correct, n) {
+  const byCloseness = candidates
+    .map((t) => ({ t, diff: Math.abs(t.length - correct.length) }))
+    .sort((a, b) => a.diff - b.diff)
+    .slice(0, Math.max(n * 3, 8))
+    .map((c) => c.t);
+  return shuffle(byCloseness).slice(0, n);
 }

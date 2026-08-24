@@ -41,15 +41,6 @@ export function fromNow(ts) {
   return new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
-/** "today", "tomorrow", "in 4 days" — for upcoming reviews. */
-export function untilNow(ts) {
-  if (!ts) return 'now';
-  const days = Math.round((startOfDay(ts) - startOfDay(Date.now())) / DAY);
-  if (days <= 0) return 'today';
-  if (days === 1) return 'tomorrow';
-  return `in ${days} days`;
-}
-
 export function startOfDay(ts) {
   const d = new Date(ts);
   d.setHours(0, 0, 0, 0);

@@ -1,8 +1,8 @@
 // One word: read it, edit it, or change how it is being learned.
 
-import { esc, on, qs, fromNow, untilNow, toast } from '../dom.js';
+import { esc, on, qs, fromNow, toast } from '../dom.js';
 import { getWord, updateWord, deleteWord, touched, lessons } from '../store.js';
-import { markLearned, learnAgain, nextDue } from '../srs.js';
+import { markLearned, learnAgain, DIRECTIONS, LEVELS_TO_LEARN } from '../srs.js';
 
 const sheet = document.getElementById('sheet');
 
@@ -34,7 +34,6 @@ function render(id) {
 }
 
 function renderView(word) {
-  const due = nextDue(word);
   sheet.innerHTML = `<div class="sheet-inner">
     <div class="sheet-head">
       <span class="status status-${word.status}">${word.status}</span>
@@ -61,7 +60,7 @@ function renderView(word) {
       <li><span>Checked</span><b>${word.checks} time${word.checks === 1 ? '' : 's'}</b></li>
       <li><span>Mistakes</span><b>${word.mistakes}</b></li>
       <li><span>Last practiced</span><b>${fromNow(word.lastPracticed)}</b></li>
-      <li><span>Next review</span><b>${word.introduced ? untilNow(due) : 'not started'}</b></li>
+      ${word.introduced ? `<li><span>Progress</span><b>${levelDots(word)}</b></li>` : ''}
     </ul>
   </div>`;
 
@@ -79,6 +78,11 @@ function renderView(word) {
     close();
     toast('Word deleted');
   });
+}
+
+function levelDots(word) {
+  const level = word.dirs[DIRECTIONS[0]].level;
+  return '●'.repeat(level) + '○'.repeat(LEVELS_TO_LEARN - level);
 }
 
 function renderEdit(word) {
