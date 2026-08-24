@@ -105,11 +105,6 @@ h1, h2, h3, p { margin: 0; }
 .today-card { text-align: center; padding: 34px 24px 28px; }
 .today-count { font-size: 46px; font-weight: 650; letter-spacing: -.03em; line-height: 1.05; }
 .today-label { font-size: 17px; color: var(--ink-2); margin-top: 2px; }
-.today-split { display: flex; justify-content: center; gap: 22px; margin: 18px 0 26px; font-size: 15px; }
-.today-split b { font-weight: 600; }
-.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
-.dot-blue { background: var(--blue); }
-.dot-orange { background: var(--orange); }
 .done-mark { font-size: 40px; line-height: 1; color: var(--blue); }
 
 /* --- chips ----------------------------------------------------- */
@@ -219,6 +214,14 @@ textarea.input { min-height: 190px; resize: vertical; line-height: 1.6; }
 .mc-option:disabled { cursor: default; }
 .mc-option.mc-correct { background: var(--blue-soft); border-color: var(--blue); color: var(--blue-ink); font-weight: 600; }
 .mc-option.mc-wrong { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+
+/* --- progress tiles ---------------------------------------------- */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.tile { background: var(--surface-2); border-radius: var(--r-md); padding: 14px; text-align: center; }
+.tile b { display: block; font-size: 24px; font-weight: 640; letter-spacing: -.02em; }
+.tile span { font-size: 12.5px; color: var(--muted); }
+.tile.accent b { color: var(--blue); }
+.tile.warm b { color: var(--orange); }
 
 /* --- results --------------------------------------------------- */
 .result-num { font-size: 54px; font-weight: 650; letter-spacing: -.03em; line-height: 1; }

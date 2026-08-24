@@ -7,8 +7,7 @@ import { learningPool, pickNewWords } from '../srs.js';
 import { startIntro, startCarousel, startExam } from '../study.js';
 import { openAddWords } from './addwords.js';
 
-const NEW_COUNTS = [5, 10, 20];
-const view = { newCount: 10 };
+const NEW_BATCH = 10;
 
 export function renderOverview(root, rerender, openWords) {
   const stats = counts();
@@ -26,17 +25,33 @@ export function renderOverview(root, rerender, openWords) {
 
   const pool = learningPool();
   const learnedPct = stats.total ? Math.round((stats.learned / stats.total) * 100) : 0;
+  const newBatch = Math.min(NEW_BATCH, stats.new);
+  const caughtUp = !stats.new && !pool.length;
 
   root.innerHTML = `
     <div class="card today-card">
       <div class="today-count">${stats.learned}</div>
       <p class="today-label">of ${stats.total} learned</p>
-      <div class="progressbar" style="margin:16px 0 18px"><i style="width:${learnedPct}%"></i></div>
-      <div class="today-split">
-        <span><i class="dot dot-orange"></i><b>${stats.new}</b> new</span>
-        <span><i class="dot dot-blue"></i><b>${stats.learning}</b> learning</span>
+      <div class="progressbar" style="margin:16px 0 20px"><i style="width:${learnedPct}%"></i></div>
+
+      <div class="tiles">
+        <div class="tile"><b>${stats.total}</b><span>Total</span></div>
+        <div class="tile warm"><b>${stats.new}</b><span>New</span></div>
+        <div class="tile accent"><b>${stats.learning}</b><span>Learning</span></div>
+        <div class="tile"><b>${stats.learned}</b><span>Learned</span></div>
       </div>
-      ${primaryBlock(stats, pool)}
+
+      <div class="btn-row" style="margin-top:20px;align-items:stretch">
+        <div style="flex:1 1 150px">
+          <button class="btn btn-big btn-primary" data-act="learn-new" ${stats.new ? '' : 'disabled'}>Learn new words</button>
+          <p class="tiny muted center" style="margin-top:8px">${stats.new ? plural(newBatch, 'word', 'words') : 'nothing new'}</p>
+        </div>
+        <div style="flex:1 1 150px">
+          <button class="btn btn-big btn-primary" data-act="continue" ${pool.length ? '' : 'disabled'}>Continue learning</button>
+          <p class="tiny muted center" style="margin-top:8px">${pool.length ? `${plural(pool.length, 'word', 'words')} in rotation` : 'nothing to review'}</p>
+        </div>
+      </div>
+      ${caughtUp ? '<p class="tiny muted center" style="margin-top:16px">All caught up — try an exam, or add more words.</p>' : ''}
     </div>
 
     <p class="count-line"><a href="#" data-act="words">See all words →</a></p>
@@ -66,11 +81,14 @@ export function renderOverview(root, rerender, openWords) {
   on(root, '[data-act="add"]', 'click', () => openAddWords(rerender));
   on(root, '[data-act="words"]', 'click', (el, e) => { e.preventDefault(); openWords(); });
 
-  on(root, '[data-act="continue"]', 'click', () => startCarousel(learningPool(), { onExit: rerender }));
+  on(root, '[data-act="continue"]', 'click', () => {
+    if (!pool.length) return;
+    startCarousel(pool, { onExit: rerender });
+  });
 
-  on(root, '[data-new-count]', 'click', (el) => { view.newCount = Number(el.dataset.newCount); rerender(); });
   on(root, '[data-act="learn-new"]', 'click', () => {
-    startIntro(pickNewWords(view.newCount), { onExit: rerender });
+    if (!stats.new) return;
+    startIntro(pickNewWords(NEW_BATCH), { onExit: rerender });
   });
 
   on(root, '[data-act="exam"]', 'click', () => {
@@ -96,40 +114,4 @@ export function renderOverview(root, rerender, openWords) {
     }
     event.target.value = '';
   });
-}
-
-function primaryBlock(stats, pool) {
-  if (pool.length > 0) {
-    return `
-      <button class="btn btn-big btn-primary" data-act="continue">Continue learning</button>
-      <p class="tiny muted" style="margin-top:10px">${plural(pool.length, 'word', 'words')} in rotation</p>
-      ${stats.new > 0 ? newWordsPicker(stats.new, true) : ''}
-    `;
-  }
-  if (stats.new > 0) {
-    return newWordsPicker(stats.new, false);
-  }
-  return `
-    <p class="today-label">All caught up</p>
-    <div class="btn-row center" style="margin-top:14px;justify-content:center">
-      <button class="btn btn-ghost" data-act="exam">Start an exam</button>
-      <button class="btn btn-ghost" data-act="add">Add words</button>
-    </div>
-  `;
-}
-
-function newWordsPicker(newTotal, secondary) {
-  const n = Math.min(view.newCount, newTotal);
-  return `
-    <div style="margin-top:${secondary ? '24px' : '0'}">
-      ${secondary ? '<p class="tiny muted" style="margin-bottom:10px">or</p>' : ''}
-      <div class="chips center" style="justify-content:center">
-        ${NEW_COUNTS.map((c) => `<button class="chip" data-new-count="${c}" aria-pressed="${view.newCount === c}">${c}</button>`).join('')}
-      </div>
-      <button class="btn btn-big ${secondary ? 'btn-ghost' : 'btn-primary'}" data-act="learn-new" style="margin-top:10px">
-        Learn ${plural(n, 'new word', 'new words')}
-      </button>
-      <p class="tiny muted" style="margin-top:8px">${plural(newTotal, 'word', 'words')} waiting</p>
-    </div>
-  `;
 }
