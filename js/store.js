@@ -1,14 +1,17 @@
 // The whole database: one JSON blob in localStorage.
 // Shape is intentionally flat and boring so it stays easy to migrate.
 
+import { dayKey } from './dom.js';
 import { parseWordLines } from './wordsformat.js';
 import { LESSONS as SEED } from './seed.js';
 
 const KEY = 'myvocab.v1';
+const DAY = 86400000;
 
 export const store = {
   version: 2,
   words: [],
+  days: {},        // 'YYYY-MM-DD' -> words practiced that day
   seedMerged: [],  // lowercased terms already pulled in from seed.js, ever
 };
 
@@ -55,6 +58,7 @@ export function load() {
 function adopt(data) {
   if (!data || typeof data !== 'object') return;
   store.words = Array.isArray(data.words) ? data.words.map(normalizeWord) : [];
+  store.days = data.days && typeof data.days === 'object' ? data.days : {};
   store.seedMerged = Array.isArray(data.seedMerged) ? data.seedMerged : [];
 }
 
@@ -162,6 +166,31 @@ export function counts() {
   const c = { total: store.words.length, new: 0, learning: 0, learned: 0 };
   for (const w of store.words) c[w.status]++;
   return c;
+}
+
+/* --- activity ----------------------------------------------------- */
+
+/** One word answered/reviewed just now — for the activity chart only. */
+export function recordActivity(n = 1) {
+  const key = dayKey();
+  store.days[key] = (store.days[key] || 0) + n;
+  save();
+  notify();
+}
+
+/** Last `n` days, oldest first, for a simple activity chart. */
+export function recentActivity(n) {
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const ts = Date.now() - i * DAY;
+    const key = dayKey(ts);
+    out.push({
+      key,
+      label: new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
+      practiced: store.days[key] || 0,
+    });
+  }
+  return out;
 }
 
 /* --- backup ----------------------------------------------------- */

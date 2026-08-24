@@ -222,6 +222,11 @@ textarea.input { min-height: 190px; resize: vertical; line-height: 1.6; }
 .tile span { font-size: 12.5px; color: var(--muted); }
 .tile.accent b { color: var(--blue); }
 .tile.warm b { color: var(--orange); }
+.bars { display: flex; align-items: flex-end; gap: 6px; height: 92px; margin-top: 6px; }
+.bars div { flex: 1; background: var(--blue-soft); border-radius: 6px 6px 3px 3px; min-height: 3px; position: relative; }
+.bars div.on { background: var(--blue); }
+.bars-x { display: flex; gap: 6px; margin-top: 8px; }
+.bars-x span { flex: 1; text-align: center; font-size: 11px; color: var(--muted); }
 
 /* --- results --------------------------------------------------- */
 .result-num { font-size: 54px; font-weight: 650; letter-spacing: -.03em; line-height: 1; }

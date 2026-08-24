@@ -2,12 +2,13 @@
 // New → Learning → Learned, and you decide how much to do and when.
 
 import { esc, on, plural, toast } from '../dom.js';
-import { store, counts, exportBackup, importBackup } from '../store.js';
+import { store, counts, exportBackup, importBackup, recentActivity } from '../store.js';
 import { learningPool, pickNewWords } from '../srs.js';
 import { startIntro, startCarousel, startExam } from '../study.js';
 import { openAddWords } from './addwords.js';
 
 const NEW_BATCH = 10;
+const DAYS_SHOWN = 14;
 
 export function renderOverview(root, rerender, openWords) {
   const stats = counts();
@@ -27,6 +28,8 @@ export function renderOverview(root, rerender, openWords) {
   const learnedPct = stats.total ? Math.round((stats.learned / stats.total) * 100) : 0;
   const newBatch = Math.min(NEW_BATCH, stats.new);
   const caughtUp = !stats.new && !pool.length;
+  const history = recentActivity(DAYS_SHOWN);
+  const peak = Math.max(1, ...history.map((d) => d.practiced));
 
   root.innerHTML = `
     <div class="card today-card">
@@ -35,7 +38,6 @@ export function renderOverview(root, rerender, openWords) {
       <div class="progressbar" style="margin:16px 0 20px"><i style="width:${learnedPct}%"></i></div>
 
       <div class="tiles">
-        <div class="tile"><b>${stats.total}</b><span>Total</span></div>
         <div class="tile warm"><b>${stats.new}</b><span>New</span></div>
         <div class="tile accent"><b>${stats.learning}</b><span>Learning</span></div>
         <div class="tile"><b>${stats.learned}</b><span>Learned</span></div>
@@ -55,6 +57,18 @@ export function renderOverview(root, rerender, openWords) {
     </div>
 
     <p class="count-line"><a href="#" data-act="words">See all words →</a></p>
+
+    <p class="section-title">Last ${DAYS_SHOWN} days</p>
+    <div class="card">
+      <div class="bars">
+        ${history.map((d) => `<div class="${d.practiced ? 'on' : ''}"
+          style="height:${Math.round((d.practiced / peak) * 100)}%"
+          title="${esc(d.key)}: ${d.practiced}"></div>`).join('')}
+      </div>
+      <div class="bars-x">
+        ${history.map((d, i) => `<span>${i === 0 || i === history.length - 1 ? d.label : ''}</span>`).join('')}
+      </div>
+    </div>
 
     <p class="section-title">Exam</p>
     <div class="card">

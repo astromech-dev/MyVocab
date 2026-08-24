@@ -7,7 +7,7 @@
 //                    a miss demotes the word back to Learning right away.
 
 import { esc, on, shuffle, plural } from './dom.js';
-import { getWord, touched } from './store.js';
+import { getWord, touched, recordActivity } from './store.js';
 import { applyAnswer, markIntroduced, learnAgain, buildExamQuestions, learningPool } from './srs.js';
 import { TARGET_LANGUAGE, NATIVE_LANGUAGE } from './config.js';
 
@@ -90,19 +90,21 @@ function reveal() { session.revealed = true; render(); }
 function advanceIntro() {
   const word = session.words[session.index];
   markIntroduced(word);
+  recordActivity();
   touched();
 
   if (session.index < session.words.length - 1) {
     session.index++;
     render();
   } else {
-    startCarousel(session.words.map((w) => getWord(w.id)).filter(Boolean), { onExit: onClose });
+    session.done = true;
+    render();
   }
 }
 
 function renderIntro() {
+  if (session.done) { renderIntroDone(); return; }
   const word = session.words[session.index];
-  const isLast = session.index === session.words.length - 1;
 
   sheet.innerHTML = `<div class="study">
     ${progress(session.index + 1, session.words.length)}
@@ -114,20 +116,28 @@ function renderIntro() {
     </div>
     <div class="answers">
       ${session.index > 0 ? '<button class="btn btn-ghost" data-act="prev">Back</button>' : ''}
-      <button class="btn a-yes" data-act="next">${isLast ? 'Start checking' : 'Next'}</button>
+      <button class="btn a-yes" data-act="next">Next</button>
     </div>
-    ${isLast ? '<div class="study-foot"><button class="btn btn-quiet" data-act="later">Later</button></div>' : ''}
     <p class="kbd-hint">Space — next</p>
   </div>`;
 
   on(inner(), '[data-act="close"]', 'click', close);
   on(inner(), '[data-act="prev"]', 'click', () => { session.index--; render(); });
   on(inner(), '[data-act="next"]', 'click', advanceIntro);
-  on(inner(), '[data-act="later"]', 'click', () => {
-    markIntroduced(word);
-    touched();
-    close();
-  });
+}
+
+function renderIntroDone() {
+  sheet.innerHTML = `<div class="study">
+    <div class="card center">
+      <div class="done-mark">✓</div>
+      <h2 class="h1" style="margin-top:10px">Nice work</h2>
+      <p class="today-label">${plural(session.words.length, 'word', 'words')} learned</p>
+    </div>
+    <div class="stack" style="margin-top:16px">
+      <button class="btn btn-big btn-primary" data-act="close">OK</button>
+    </div>
+  </div>`;
+  on(inner(), '[data-act="close"]', 'click', close);
 }
 
 /* --- carousel ----------------------------------------------------------- */
@@ -137,6 +147,7 @@ function answerCarousel(result) {
   const word = getWord(current.wordId);
   if (word) {
     applyAnswer(word, 'fr', result);
+    recordActivity();
     touched();
     if (word.status === 'learned') session.promoted++;
     else session.queue.splice(Math.min(session.queue.length, result === 'knew' ? BACK_KNEW : BACK_UNKNOWN), 0, current);
@@ -201,6 +212,7 @@ function chooseOption(i) {
   const q = session.questions[session.index];
   const word = getWord(q.wordId);
   session.chosen = i;
+  recordActivity();
 
   if (i === q.correctIndex) {
     session.correct++;
