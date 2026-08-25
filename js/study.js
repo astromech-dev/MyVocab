@@ -19,8 +19,35 @@ const inner = () => sheet.firstElementChild;
 let session = null;
 let onClose = () => {};
 
-const BACK_KNEW = 8;     // knew it — goes deeper into the queue
-const BACK_UNKNOWN = 3;  // didn't know — comes back sooner
+// How many other cards get shown before an answered card comes back, as a
+// share of the words still in rotation — not a fixed count, so a "didn't
+// know" doesn't always resurface after exactly N cards regardless of how
+// big the pool is. Small pools naturally collapse to "goes to the end"
+// either way.
+//
+// This is a due-turn scheduler, not an array-position one: each card gets a
+// `dueAt` turn number, and whichever card has the lowest `dueAt` is shown
+// next. Turn numbers only ever increase, so a card can't get permanently
+// stuck behind others the way inserting at a fixed *array position* would —
+// reinserting at a fixed offset each time re-traps the same tail of the
+// queue forever once the pool size stops changing (verified: 30 words, all
+// answered "knew", plateaus at 21/30 ever shown — the rest are never
+// reachable again that session).
+const KNEW_GAP_RATIO = 0.7;     // knew it — goes deeper into the queue
+const KNEW_GAP_MIN = 8;
+const UNKNOWN_GAP_RATIO = 0.35; // didn't know — comes back sooner
+const UNKNOWN_GAP_MIN = 4;
+
+function reviewGap(result, poolSize) {
+  const ratio = result === 'knew' ? KNEW_GAP_RATIO : UNKNOWN_GAP_RATIO;
+  const min = result === 'knew' ? KNEW_GAP_MIN : UNKNOWN_GAP_MIN;
+  return Math.max(min, Math.round(poolSize * ratio));
+}
+
+/** The queue entry that's due soonest — shown next without being removed. */
+function dueCard(queue) {
+  return queue.reduce((soonest, e) => (e.dueAt < soonest.dueAt ? e : soonest), queue[0]);
+}
 
 /* --- entry points ---------------------------------------------------- */
 
@@ -36,7 +63,16 @@ export function startIntro(words, { onExit } = {}) {
 export function startCarousel(words, { onExit } = {}) {
   onClose = onExit || (() => {});
   if (!words.length) { session = { kind: 'empty', note: 'No words are in Learning right now.' }; open(); render(); return; }
-  session = { kind: 'carousel', queue: shuffle(words.map((w) => ({ wordId: w.id }))), revealed: false, reviewed: 0, promoted: 0, doneToday: 0 };
+  const shuffled = shuffle(words);
+  session = {
+    kind: 'carousel',
+    queue: shuffled.map((w, i) => ({ wordId: w.id, dueAt: i })),
+    turn: shuffled.length,
+    revealed: false,
+    reviewed: 0,
+    promoted: 0,
+    doneToday: 0,
+  };
   open(); render();
 }
 
@@ -155,7 +191,9 @@ function renderIntroDone() {
 /* --- carousel ----------------------------------------------------------- */
 
 function answerCarousel(result) {
-  const current = session.queue.shift();
+  const current = dueCard(session.queue);
+  session.queue.splice(session.queue.indexOf(current), 1);
+  session.turn++;
   const word = getWord(current.wordId);
   if (word) {
     const outcome = applyAnswer(word, 'fr', result);
@@ -163,7 +201,10 @@ function answerCarousel(result) {
     touched();
     if (outcome === 'learned') session.promoted++;
     else if (outcome === 'day-complete') session.doneToday++;
-    else session.queue.splice(Math.min(session.queue.length, result === 'knew' ? BACK_KNEW : BACK_UNKNOWN), 0, current);
+    else {
+      current.dueAt = session.turn + reviewGap(result, session.queue.length);
+      session.queue.push(current);
+    }
   }
   session.reviewed++;
   session.revealed = false;
@@ -172,7 +213,7 @@ function answerCarousel(result) {
 
 function renderCarousel() {
   if (!session.queue.length) { renderCarouselDone(); return; }
-  const current = session.queue[0];
+  const current = dueCard(session.queue);
   const word = getWord(current.wordId);
   const deck = activeDeck();
 
