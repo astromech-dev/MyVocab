@@ -1,6 +1,6 @@
 // Offline: cache the app shell on install, serve from cache first.
 // Bump CACHE whenever a file below changes so browsers pick up the new version.
-const CACHE = 'myvocab-v14';
+const CACHE = 'myvocab-v15';
 
 const SHELL = [
   './',

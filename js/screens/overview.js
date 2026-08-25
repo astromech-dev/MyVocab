@@ -12,10 +12,10 @@ const NEW_BATCH = 10;
 const DAYS_SHOWN = 14;
 
 /**
- * Practice and Learn as two rows, not two competing buttons: whichever has
- * words waiting gets the emphasized ("primary") look, an empty one goes
- * quiet instead of disappearing so the layout doesn't jump around. Each row
- * is a single button — the whole card is the tap target, not a pill inside it.
+ * Learn and Practice as two fixed rows (Learn always first), not two
+ * competing buttons: an empty one goes quiet instead of disappearing so the
+ * layout doesn't jump around. Each row is a single button — the whole card
+ * is the tap target, not a pill inside it.
  */
 function actionsBlock(stats, pool) {
   if (!stats.new && !pool.length && !stats.learning) {
@@ -28,8 +28,19 @@ function actionsBlock(stats, pool) {
     </div>`;
   }
 
+  const learnRow = stats.new
+    ? `<button class="action-card new" type="button" data-act="learn-new">
+        <div class="action-icon">+</div>
+        <div class="action-text"><div class="t">${plural(stats.new, 'new word', 'new words')} waiting</div><div class="s">Start a fresh batch</div></div>
+        <span class="action-go" aria-hidden="true">→</span>
+      </button>`
+    : `<div class="action-card new disabled">
+        <div class="action-icon">0</div>
+        <div class="action-text"><div class="t">No new words</div><div class="s">All caught up on new material</div></div>
+      </div>`;
+
   const practiceRow = pool.length
-    ? `<button class="action-card learning primary" type="button" data-act="practice">
+    ? `<button class="action-card learning" type="button" data-act="practice">
         <div class="action-icon">${pool.length}</div>
         <div class="action-text"><div class="t">Words ready to review</div><div class="s">In your learning queue</div></div>
         <span class="action-go" aria-hidden="true">→</span>
@@ -44,18 +55,7 @@ function actionsBlock(stats, pool) {
         <div class="action-text"><div class="t">Nothing to review yet</div><div class="s">Learn some words first</div></div>
       </div>`;
 
-  const learnRow = stats.new
-    ? `<button class="action-card new${pool.length ? '' : ' primary'}" type="button" data-act="learn-new">
-        <div class="action-icon">+</div>
-        <div class="action-text"><div class="t">${plural(stats.new, 'new word', 'new words')} waiting</div><div class="s">Start a fresh batch</div></div>
-        <span class="action-go" aria-hidden="true">→</span>
-      </button>`
-    : `<div class="action-card new disabled">
-        <div class="action-icon">0</div>
-        <div class="action-text"><div class="t">No new words</div><div class="s">All caught up on new material</div></div>
-      </div>`;
-
-  return `<div class="actions">${pool.length ? practiceRow + learnRow : learnRow + practiceRow}</div>`;
+  return `<div class="actions">${learnRow}${practiceRow}</div>`;
 }
 
 export function renderOverview(root, rerender, openWords) {
@@ -98,7 +98,10 @@ export function renderOverview(root, rerender, openWords) {
         <div class="item"><span class="swatch learning"></span>Learning <b>${stats.learning}</b></div>
         <div class="item"><span class="swatch learned"></span>Learned <b>${stats.learned}</b></div>
       </div>
+    </div>
 
+    <p class="section-title">Learning queue</p>
+    <div class="card">
       ${actionsBlock(stats, pool)}
     </div>
 
@@ -119,13 +122,23 @@ export function renderOverview(root, rerender, openWords) {
     <p class="section-title">Exam</p>
     <div class="card">
       ${stats.learned > 0
-        ? `<p class="small ink-2">Test how well you remember your learned words.</p>
-           <p class="tiny muted" style="margin-top:4px">${plural(stats.learned, 'word', 'words')}</p>
-           <button class="btn btn-primary" data-act="exam" style="margin-top:12px">Start exam</button>`
-        : `<p class="small ink-2">Test how well you remember the words you've learned.</p>
-           <p class="tiny muted" style="margin-top:4px">No learned words yet</p>
-           <p class="small ink-2" style="margin-top:10px">Your first exam will be available once you've learned some words.</p>
-           <button class="btn btn-primary" data-act="exam" style="margin-top:12px" disabled>Start exam</button>`}
+        ? `<div class="exam-row">
+             <div class="exam-icon ready">✓</div>
+             <div class="action-text">
+               <p class="small ink-2">Test how well you remember your learned words.</p>
+               <p class="tiny muted" style="margin-top:4px">${plural(stats.learned, 'word', 'words')}</p>
+             </div>
+           </div>
+           <button class="btn btn-primary btn-big" data-act="exam" style="margin-top:16px">Start exam</button>`
+        : `<div class="exam-row">
+             <div class="exam-icon">🔒</div>
+             <div class="action-text">
+               <p class="small ink-2">Test how well you remember the words you've learned.</p>
+               <p class="tiny muted" style="margin-top:4px">No learned words yet</p>
+               <p class="small ink-2" style="margin-top:10px">Your first exam will be available once you've learned some words.</p>
+             </div>
+           </div>
+           <button class="btn btn-primary btn-big" data-act="exam" style="margin-top:16px" disabled>Start exam</button>`}
     </div>
 
     <p class="section-title">Backup</p>
