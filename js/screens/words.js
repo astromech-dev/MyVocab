@@ -35,10 +35,7 @@ export function renderWords(root, rerender, goBack) {
   const allVisibleSelected = list.length > 0 && list.every((w) => view.selected.has(w.id));
 
   root.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 8px -12px">
-      <button class="btn btn-quiet" data-act="back">← Back</button>
-      <button class="btn btn-quiet" data-act="toggle-select">${selecting ? 'Cancel' : 'Select'}</button>
-    </div>
+    <button class="btn btn-quiet" data-act="back" style="margin:0 0 8px -12px">← Back</button>
     <input class="search" id="q" type="search" placeholder="Search words, translations, pronunciation"
       value="${esc(view.q)}" autocomplete="off">
 
@@ -56,24 +53,26 @@ export function renderWords(root, rerender, goBack) {
       </select>
     </div>` : ''}
 
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
+      <p class="count-line" id="count-line" style="margin:0">${list.length} of ${stats.total} word${stats.total === 1 ? '' : 's'}</p>
+      <button class="btn btn-quiet" data-act="toggle-select">${selecting ? 'Cancel' : 'Select'}</button>
+    </div>
+
     ${selecting ? `<div class="btn-row" style="margin-top:12px">
       <button class="btn btn-ghost" data-act="select-all">${allVisibleSelected ? 'Deselect all' : 'Select all'}</button>
       <button class="btn btn-danger" data-act="delete-selected" ${view.selected.size ? '' : 'disabled'}>Delete (${view.selected.size})</button>
     </div>` : ''}
 
-    <p class="count-line">${list.length} of ${stats.total} word${stats.total === 1 ? '' : 's'}</p>
-
-    ${list.length ? `<ul class="list">${list.map((w) => row(w, selecting, view.selected)).join('')}</ul>`
-      : '<div class="empty">Nothing matches.</div>'}
+    <div id="list-container">
+      ${list.length ? `<ul class="list">${list.map((w) => row(w, selecting, view.selected)).join('')}</ul>`
+        : '<div class="empty">Nothing matches.</div>'}
+    </div>
   `;
 
   const input = qs(root, '#q');
   input.addEventListener('input', () => {
     view.q = input.value;
-    const cursor = input.selectionStart;
-    rerender();
-    const next = qs(root, '#q');
-    if (next) { next.focus(); next.setSelectionRange(cursor, cursor); }
+    updateList(root);
   });
 
   on(root, '[data-act="back"]', 'click', goBack);
@@ -106,6 +105,22 @@ export function renderWords(root, rerender, goBack) {
     rerender();
   });
   on(root, '[data-word]', 'click', (el) => openWord(el.dataset.word, rerender));
+}
+
+// Updates only the count line and word list, leaving the search input
+// untouched — replacing it (as a full rerender would) drops focus and, on
+// mobile, closes the keyboard after every keystroke.
+function updateList(root) {
+  const stats = counts();
+  const list = filtered();
+  const countLine = qs(root, '#count-line');
+  if (countLine) countLine.textContent = `${list.length} of ${stats.total} word${stats.total === 1 ? '' : 's'}`;
+  const container = qs(root, '#list-container');
+  if (container) {
+    container.innerHTML = list.length
+      ? `<ul class="list">${list.map((w) => row(w, view.selecting, view.selected)).join('')}</ul>`
+      : '<div class="empty">Nothing matches.</div>';
+  }
 }
 
 function filtered() {
