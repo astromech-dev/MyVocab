@@ -40,6 +40,7 @@ function show() {
 
 function renderPaste() {
   const known = lessons();
+  const isNewLesson = lessonName && !known.includes(lessonName);
   sheet.innerHTML = `<div class="sheet-inner">
     <div class="sheet-head">
       <h2>Add words</h2>
@@ -56,9 +57,13 @@ function renderPaste() {
 
     <label class="field">
       <span>Lesson (optional)</span>
-      <input class="input" id="lesson" list="lesson-list" autocomplete="off"
-        placeholder="Lesson 12" value="${esc(lessonName)}">
-      <datalist id="lesson-list">${known.map((l) => `<option value="${esc(l)}">`).join('')}</datalist>
+      <select class="input" id="lesson-select">
+        <option value="">No lesson</option>
+        ${known.map((l) => `<option value="${esc(l)}" ${!isNewLesson && l === lessonName ? 'selected' : ''}>${esc(l)}</option>`).join('')}
+        <option value="__new__" ${isNewLesson ? 'selected' : ''}>➕ New lesson…</option>
+      </select>
+      <input class="input" id="lesson-new" placeholder="Lesson name"
+        value="${esc(isNewLesson ? lessonName : '')}" ${isNewLesson ? '' : 'hidden'}>
     </label>
 
     <div class="sheet-foot">
@@ -67,8 +72,14 @@ function renderPaste() {
   </div>`;
 
   on(inner(), '[data-act="close"]', 'click', close);
+  on(inner(), '#lesson-select', 'change', (el) => {
+    const newField = qs(sheet, '#lesson-new');
+    newField.hidden = el.value !== '__new__';
+    if (!newField.hidden) newField.focus();
+  });
   on(inner(), '[data-act="preview"]', 'click', () => {
-    lessonName = qs(sheet, '#lesson').value.trim();
+    const picked = qs(sheet, '#lesson-select').value;
+    lessonName = picked === '__new__' ? qs(sheet, '#lesson-new').value.trim() : picked;
     const rows = parseWordLines(qs(sheet, '#paste').value);
     if (!rows.length) { toast('Paste some words first'); return; }
     draft = rows;
