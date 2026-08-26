@@ -195,21 +195,33 @@ export function addDeck(name) {
 
 export function getWord(id) { return store.words.find((w) => w.id === id); }
 
+/** Skips any row whose term already exists in the deck (case-insensitive) —
+ * a duplicate collapses into the existing word instead of starting a fresh
+ * one, so its progress/status is untouched and it never appears twice. */
 export function addWords(rows, lesson = '', deckId = store.activeDeckId) {
   const now = Date.now();
-  const added = rows.map((row, i) => normalizeWord({
-    id: uid(),
-    deckId,
-    term: row.term,
-    translation: row.translation,
-    transcription: row.transcription,
-    lesson,
-    createdAt: now + i,   // keeps the pasted order stable
-  }));
-  store.words.push(...added);
+  const seen = new Set(store.words
+    .filter((w) => w.deckId === deckId)
+    .map((w) => w.term.toLowerCase()));
+  let added = 0;
+  rows.forEach((row) => {
+    const key = row.term.trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    store.words.push(normalizeWord({
+      id: uid(),
+      deckId,
+      term: row.term,
+      translation: row.translation,
+      transcription: row.transcription,
+      lesson,
+      createdAt: now + added,   // keeps the pasted order stable
+    }));
+    added++;
+  });
   save();
   notify();
-  return added.length;
+  return added;
 }
 
 export function updateWord(id, patch) {

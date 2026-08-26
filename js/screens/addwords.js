@@ -90,7 +90,7 @@ function renderPreview() {
       <input class="input" data-f="translation" value="${esc(row.translation)}" placeholder="Translation">
       <input class="input" data-f="transcription" value="${esc(row.transcription)}" placeholder="Pronunciation">
       <button class="x" data-act="drop" title="Remove this line" aria-label="Remove">✕</button>
-      ${dup ? '<div class="tiny"><span class="badge-warn">already in your words</span></div>' : ''}
+      ${dup ? '<div class="tiny"><span class="badge-warn">already in your words — won\'t be added again</span></div>' : ''}
     </div>`;
   }).join('');
 
@@ -123,8 +123,11 @@ function renderPreview() {
     const rows = draft.filter((r) => r.term);
     if (!rows.length) { toast('Nothing to add'); return; }
     const n = addWords(rows, lessonName);
+    const skipped = rows.length - n;
     close();
-    toast(`${n} word${n === 1 ? '' : 's'} added`);
+    toast(skipped
+      ? `${n} word${n === 1 ? '' : 's'} added, ${skipped} already existed`
+      : `${n} word${n === 1 ? '' : 's'} added`);
     afterAdd();
   });
 }
