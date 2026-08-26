@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MyVocab">
 <rect x="0.5" y="0.5" width="63" height="63" rx="7.5" fill="white"/>
 <rect x="0.5" y="0.5" width="63" height="63" rx="7.5" fill="none" stroke="#E2E8F0"/>
-<rect x="12" y="31" width="10" height="22" rx="5" fill="#FB923C"/>
-<rect x="26" y="21" width="10" height="32" rx="5" fill="#60A5FA"/>
-<path d="M40 17C40 13.6863 42.6863 11 46 11C49.3137 11 52 13.6863 52 17V49.5C52 50.3284 51.3284 51 50.5 51H46C42.6863 51 40 48.3137 40 45V17Z" fill="#3B82F6"/>
-<path d="M43 47L40.4019 42.5H45.5981L43 47Z" fill="#3B82F6"/>
+<rect x="12" y="31" width="10" height="22" rx="5" fill="#85D1B8"/>
+<rect x="26" y="21" width="10" height="32" rx="5" fill="#F07A5D"/>
+<path d="M40 17C40 13.6863 42.6863 11 46 11C49.3137 11 52 13.6863 52 17V49.5C52 50.3284 51.3284 51 50.5 51H46C42.6863 51 40 48.3137 40 45V17Z" fill="#8B7EE0"/>
+<path d="M43 47L40.4019 42.5H45.5981L43 47Z" fill="#8B7EE0"/>
 </svg>

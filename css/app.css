@@ -5,32 +5,33 @@
    red = mistakes. Never all three in the same element.
 --------------------------------------------------------------- */
 :root {
-  --bg:        #FBFAF8;
+  --bg:        #FAF8F5;
   --surface:   #FFFFFF;
   --surface-2: #F4F2EE;
-  --ink:       #17171B;
-  --ink-2:     #55555E;
-  --muted:     #8A8A93;
+  --ink:       #2D2529;
+  --ink-2:     #5C5459;
+  --muted:     #8F8589;
   --line:      #E7E4DE;
 
-  --blue:      #1F5FF0;
-  --blue-ink:  #12409F;
-  --blue-soft: #ECF1FE;
+  --blue:      #8B7EE0;
+  --blue-ink:  #4B3FA6;
+  --blue-soft: #EDEBFC;
   --red:       #DC342A;
   --red-soft:  #FDEDEB;
-  --orange:    #E8720C;
-  --orange-soft:#FFF2E4;
-  --green:     #1C9A5B;
-  --green-soft:#E6F6EC;
+  --orange:    #F07A5D;
+  --orange-soft:#FDEAE4;
+  --green:     #85D1B8;
+  --green-soft:#E7F5F0;
 
-  /* muted overview-screen accents — softer than the product blue/orange
-     above, used only for the home screen's status bar and queue cards */
-  --new:        #C9793F;
-  --new-bg:     #F7ECE0;
-  --review:     #5D79B5;
-  --review-bg:  #ECF0FA;
-  --done:       #5FA37D;
-  --done-bg:    #E9F3EC;
+  /* overview-screen accents reuse the same blue/orange hues as the product
+     colors above (kept as separate tokens for semantics), so the "new" and
+     "learning" indicators read as one consistent palette across the app */
+  --new:        #F07A5D;
+  --new-bg:     #FDEAE4;
+  --review:     #8B7EE0;
+  --review-bg:  #EDEBFC;
+  --done:       #85D1B8;
+  --done-bg:    #E7F5F0;
 
   --r-lg: 24px;
   --r-md: 16px;
