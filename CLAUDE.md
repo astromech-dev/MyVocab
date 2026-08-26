@@ -68,24 +68,30 @@ mutates a `word` object and recomputes `status` via `refreshStatus()`.
 `study.js` owns the four study sessions (`startIntro`, `startCarousel`,
 `startExam`, `pickLesson`) and renders into the shared `#sheet` panel.
 
-Learning happens in **three shrinking day-stages**, `STAGE_REQS = [3, 2, 1]`
-([js/srs.js:20](js/srs.js:20)): a word needs 3 successful Knews on its first
-day in Learning, then 2 on a *separate* calendar day, then 1 on a third —
-`applyAnswer()` tracks this per-direction with `stageReps`/`stageRepsDay`
-(today's progress within the current stage) and `dayDoneOn` (sets once
-today's stage is cleared, which is what `learningPool()` checks to hide a
-word from Practice until the next calendar day). Hitting all 3 stages sets
-`status = 'learned'` — no separate age gate needed, since three stages
-structurally require three different days. A miss costs more the further
-along the word is: free on the 3-rep stage, resets the current stage's
-progress to zero on the 2-rep stage, and knocks a whole stage back on the
-1-rep (last) stage — see the branches in `applyAnswer()`
+Learning happens in **two day-stages of 2 successful Knews each**,
+`STAGE_REQS = [2, 2]` ([js/srs.js:20](js/srs.js:20)): a word needs 2
+successful Knews on its first day in Learning, then 2 more on a *separate*
+calendar day (4 total) — `applyAnswer()` tracks this per-direction with
+`stageReps`/`stageRepsDay` (today's progress within the current stage) and
+`dayDoneOn` (sets once today's stage is cleared, which is what
+`learningPool()` checks to hide a word from Practice until the next calendar
+day). Hitting both stages sets `status = 'learned'` — no separate age gate
+needed, since two stages structurally require two different days. A miss
+costs one already-earned rep for today's stage (floored at zero), never
+more — bounded, so a run of mistakes can't spiral a word into looping
+dozens of times in one sitting — see `applyAnswer()`
 ([js/srs.js:40](js/srs.js:40)). `applyAnswer()` returns `'learned'` /
 `'day-complete'` / `'continue'` so `study.js`'s carousel knows whether to
 drop the card from today's rotation or keep circulating it. Exam is the only
 path that demotes a Learned word back to Learning (via `learnAgain()`,
 which also powers the manual "Learn again" action in
 [js/screens/worddetail.js](js/screens/worddetail.js)).
+
+`startCarousel()` in [js/study.js](js/study.js) orders each session's queue
+with words not yet practiced today first (shuffled among themselves), words
+already practiced today after — so reopening Practice later the same day
+surfaces different words instead of reshuffling the whole pool from scratch
+every time.
 
 **Lesson picker:** when the eligible New or Learning words for Learn/Practice
 span more than one named lesson, `pickLesson()` interrupts with a "Choose a

@@ -6,7 +6,7 @@
 //  - startExam     — a one-shot multiple-choice check over Learned words;
 //                    a miss demotes the word back to Learning right away.
 
-import { esc, on, shuffle, plural } from './dom.js';
+import { esc, on, shuffle, plural, dayKey } from './dom.js';
 import { getWord, touched, recordActivity, activeDeck } from './store.js';
 import { applyAnswer, markIntroduced, learnAgain, buildExamQuestions, learningPool, learningPoolLessons } from './srs.js';
 
@@ -59,15 +59,24 @@ export function startIntro(words, { onExit } = {}) {
   open(); render();
 }
 
-/** The Learning rotation: endless, self-graded, keeps going until you stop. */
+/**
+ * The Learning rotation: endless, self-graded, keeps going until you stop.
+ * Words not yet practiced today go first (shuffled among themselves), words
+ * already practiced today go after — so reopening Practice later the same
+ * day surfaces different words instead of reshuffling the same full pool
+ * from scratch every time.
+ */
 export function startCarousel(words, { onExit } = {}) {
   onClose = onExit || (() => {});
   if (!words.length) { session = { kind: 'empty', note: 'No words are in Learning right now.' }; open(); render(); return; }
-  const shuffled = shuffle(words);
+  const today = dayKey();
+  const fresh = shuffle(words.filter((w) => dayKey(w.lastPracticed || 0) !== today));
+  const seenToday = shuffle(words.filter((w) => dayKey(w.lastPracticed || 0) === today));
+  const ordered = [...fresh, ...seenToday];
   session = {
     kind: 'carousel',
-    queue: shuffled.map((w, i) => ({ wordId: w.id, dueAt: i })),
-    turn: shuffled.length,
+    queue: ordered.map((w, i) => ({ wordId: w.id, dueAt: i })),
+    turn: ordered.length,
     revealed: false,
     reviewed: 0,
     promoted: 0,

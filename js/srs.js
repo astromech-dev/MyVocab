@@ -1,12 +1,12 @@
-// Learning model: New → Learning → Learned, in three day-stages of shrinking
-// size — 3 successful Knews, then 2, then 1, each stage's quota completed on
-// its own calendar day. Hit today's quota and the word drops out of Practice
-// until a new day, so a burst of quick answers in one sitting can't fake
-// "Learned" — only correct recall on 3 separate days can.
+// Learning model: New → Learning → Learned, in two day-stages of 2 successful
+// Knews each, each stage's quota completed on its own calendar day. Hit
+// today's quota and the word drops out of Practice until a new day, so a
+// burst of quick answers in one sitting can't fake "Learned" — only correct
+// recall on 2 separate days can (4 correct answers total).
 //
-// A miss costs more the further along the word is: on the 3-rep stage it
-// just keeps circulating; on the 2-rep stage the stage restarts from zero;
-// on the 1-rep stage the word is pushed back a whole stage.
+// A miss costs one already-earned correct rep for today's stage (floored at
+// zero) — bounded, so a run of mistakes can't spiral a word into looping
+// dozens of times in one sitting.
 //
 // Exam is separate: a one-shot, multiple-choice check over words already
 // marked Learned. Getting one wrong immediately demotes it back to Learning
@@ -15,9 +15,9 @@
 import { shuffle, dayKey } from './dom.js';
 import { store } from './store.js';
 
-// Successes needed per day-stage: 3 on the word's first day in Learning, 2
-// the next day it's practiced, 1 the day after that — then it's Learned.
-export const STAGE_REQS = [3, 2, 1];
+// Successes needed per day-stage: 2 on the word's first day in Learning, 2
+// more on a later day — then it's Learned.
+export const STAGE_REQS = [2, 2];
 
 // Russian → Armenian ('rf') is switched off for now — add it back here to
 // bring back speaking practice. The data model already tracks it per word.
@@ -39,18 +39,9 @@ export function applyAnswer(word, kind, answer, now = Date.now()) {
 
   if (answer === 'unknown') {
     word.mistakes++;
-    if (dir.level === STAGE_REQS.length - 1) {
-      // Miss on the last stage: not Learned yet, back a whole stage.
-      dir.level = Math.max(0, dir.level - 1);
-      dir.stageReps = 0;
-      dir.stageRepsDay = null;
-    } else if (dir.level > 0) {
-      // Miss mid-way through: redo this stage's quota from scratch.
-      dir.stageReps = 0;
-      dir.stageRepsDay = null;
-    }
-    // Miss on the very first stage: no penalty beyond not counting — the
-    // word just keeps circulating today.
+    // Costs one already-earned rep for today's stage, never more — so a few
+    // mistakes can't make the word loop through the deck indefinitely.
+    if (dir.stageRepsDay === today) dir.stageReps = Math.max(0, dir.stageReps - 1);
   } else {
     if (dir.stageRepsDay !== today) { dir.stageReps = 0; dir.stageRepsDay = today; }
     dir.stageReps++;
