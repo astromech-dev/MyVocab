@@ -3,6 +3,7 @@
 import { esc, on, qs, qsa, toast } from '../dom.js';
 import { store, addWords, lessons } from '../store.js';
 import { parseWordLines } from '../wordsformat.js';
+import { PACK_LANGUAGES, getPack } from '../packs.js';
 
 const sheet = document.getElementById('sheet');
 
@@ -12,6 +13,7 @@ const inner = () => sheet.firstElementChild;
 let draft = null;          // null = paste step, array = preview step
 let lessonName = '';
 let afterAdd = () => {};
+let packView = null;       // a pack object = showing its read-only preview step
 
 const EXAMPLE = `word or phrase | translation | pronunciation
 another word | its translation | pronunciation
@@ -20,6 +22,7 @@ a short phrase | its translation | pronunciation`;
 export function openAddWords(onDone = () => {}) {
   draft = null;
   lessonName = '';
+  packView = null;
   afterAdd = onDone;
   show();
 }
@@ -33,7 +36,9 @@ function close() {
 function show() {
   sheet.hidden = false;
   document.body.style.overflow = 'hidden';
-  draft ? renderPreview() : renderPaste();
+  if (packView) renderPackPreview();
+  else if (draft) renderPreview();
+  else renderPaste();
 }
 
 /* --- step 1: paste ---------------------------------------------- */
@@ -69,6 +74,8 @@ function renderPaste() {
     <div class="sheet-foot">
       <button class="btn btn-big btn-primary" data-act="preview">Preview</button>
     </div>
+
+    ${packsSection()}
   </div>`;
 
   on(inner(), '[data-act="close"]', 'click', close);
@@ -85,7 +92,86 @@ function renderPaste() {
     draft = rows;
     renderPreview();
   });
+  on(inner(), '[data-pack]', 'click', (el) => {
+    const pack = getPack(el.dataset.pack);
+    if (!pack) return;
+    packView = pack;
+    renderPackPreview();
+  });
   qs(sheet, '#paste').focus();
+}
+
+/** "Add ready-made packs" — a browsable catalog inside the paste step,
+ * grouped by language (only English for now, see js/packs.js). A pack whose
+ * every term is already in this deck (case-insensitive, same check addWords()
+ * uses) shows as added and can't be tapped again — no separate "added packs"
+ * list to keep in sync, it's just derived from store.words each render. */
+function packsSection() {
+  if (!PACK_LANGUAGES.length) return '';
+  const existing = new Set(store.words
+    .filter((w) => w.deckId === store.activeDeckId)
+    .map((w) => w.term.toLowerCase()));
+  const groups = PACK_LANGUAGES.map(({ lang, packIds }) => {
+    const packs = packIds.map(getPack).filter(Boolean);
+    if (!packs.length) return '';
+    return `<p class="tiny muted" style="margin:14px 0 8px">${esc(lang)}</p>
+      <div class="actions">
+        ${packs.map((p) => {
+          const added = p.words.every((w) => existing.has(w.term.toLowerCase()));
+          return `<button class="action-card${added ? ' disabled' : ''}" type="button"
+            data-pack="${esc(p.id)}" ${added ? 'disabled aria-label="Already added"' : ''}>
+            <div class="action-icon">${added ? '✓' : '📚'}</div>
+            <div class="action-text">
+              <div class="t">${esc(p.name)}</div>
+              <div class="s">${added ? 'Added' : `${p.words.length} words`}</div>
+            </div>
+            ${added ? '' : '<span class="action-go" aria-hidden="true">→</span>'}
+          </button>`;
+        }).join('')}
+      </div>`;
+  }).join('');
+  if (!groups) return '';
+  return `<p class="section-title" style="margin-top:26px">Add ready-made packs</p>${groups}`;
+}
+
+/* --- pack preview: read-only list, one tap to add ---------------- */
+
+function renderPackPreview() {
+  const pack = packView;
+  const rows = pack.words.map((w) => `<li class="word-row" style="padding:12px 4px">
+    <span class="col">
+      <span class="term">${esc(w.term)}</span>
+      ${w.transcription ? `<span class="tr" style="display:block">${esc(w.transcription)}</span>` : ''}
+      <span class="tl" style="display:block">${esc(w.translation)}</span>
+    </span>
+  </li>`).join('');
+
+  sheet.innerHTML = `<div class="sheet-inner">
+    <div class="sheet-head">
+      <h2>${esc(pack.name)}</h2>
+      <button class="btn btn-quiet" data-act="close">Cancel</button>
+    </div>
+    <p class="hint" style="margin-top:0">${pack.words.length} words</p>
+    <ul class="list">${rows}</ul>
+    <div class="sheet-foot">
+      <button class="btn btn-big btn-primary" data-act="add-pack">Add ${pack.words.length} words</button>
+      <div class="center" style="margin-top:8px">
+        <button class="btn btn-quiet" data-act="back">Back</button>
+      </div>
+    </div>
+  </div>`;
+
+  on(inner(), '[data-act="close"]', 'click', close);
+  on(inner(), '[data-act="back"]', 'click', () => { packView = null; renderPaste(); });
+  on(inner(), '[data-act="add-pack"]', 'click', () => {
+    const n = addWords(pack.words, pack.name);
+    const skipped = pack.words.length - n;
+    close();
+    toast(skipped
+      ? `${n} word${n === 1 ? '' : 's'} added, ${skipped} already existed`
+      : `${n} word${n === 1 ? '' : 's'} added`);
+    afterAdd();
+  });
 }
 
 /* --- step 2: preview -------------------------------------------- */
