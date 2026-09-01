@@ -12,16 +12,32 @@ const sheet = document.getElementById('sheet');
 const inner = () => sheet.firstElementChild;
 let draft = null;          // null = paste step, array = preview step
 let lessonName = '';
+let parseMode = 'columns'; // how to read the pasted text — see js/wordsformat.js
 let afterAdd = () => {};
 let packView = null;       // a pack object = showing its read-only preview step
 
-const EXAMPLE = `word or phrase | translation | pronunciation
-another word | its translation | pronunciation
-a short phrase | its translation | pronunciation`;
+const EXAMPLES = {
+  columns: `word or phrase | translation | pronunciation
+another word | its translation
+a short phrase | its translation`,
+  rows2: `word or phrase
+translation
+
+another word
+its translation`,
+  rows3: `word or phrase
+translation
+pronunciation
+
+another word
+its translation
+pronunciation`,
+};
 
 export function openAddWords(onDone = () => {}) {
   draft = null;
   lessonName = '';
+  parseMode = 'columns';
   packView = null;
   afterAdd = onDone;
   show();
@@ -53,12 +69,21 @@ function renderPaste() {
     </div>
 
     <label class="field">
-      <span>One word or phrase per line</span>
-      <textarea class="input" id="paste" spellcheck="false"
-        placeholder="${esc(EXAMPLE)}"></textarea>
+      <span>How is your list laid out?</span>
+      <select class="input" id="parse-mode">
+        <option value="columns" ${parseMode === 'columns' ? 'selected' : ''}>All on one line — word, translation, pronunciation</option>
+        <option value="rows2" ${parseMode === 'rows2' ? 'selected' : ''}>Word and translation on separate lines</option>
+        <option value="rows3" ${parseMode === 'rows3' ? 'selected' : ''}>Word, translation, pronunciation on separate lines</option>
+      </select>
     </label>
-    <p class="hint">Format: <code>word | translation | pronunciation</code><br>
-      Pronunciation is optional — write it however is easiest for you to read.</p>
+
+    <label class="field">
+      <span>Paste your words</span>
+      <textarea class="input" id="paste" spellcheck="false"
+        placeholder="${esc(EXAMPLES[parseMode])}"></textarea>
+    </label>
+    <p class="hint" id="parse-hint">${modeHint()}</p>
+    <p class="hint" id="parse-count" aria-live="polite"></p>
 
     <label class="field">
       <span>Lesson (optional)</span>
@@ -84,10 +109,18 @@ function renderPaste() {
     newField.hidden = el.value !== '__new__';
     if (!newField.hidden) newField.focus();
   });
+  on(inner(), '#parse-mode', 'change', (el) => {
+    parseMode = el.value;
+    const box = qs(sheet, '#paste');
+    box.placeholder = EXAMPLES[parseMode];
+    qs(sheet, '#parse-hint').textContent = modeHint();
+    updateCount();
+  });
+  on(inner(), '#paste', 'input', updateCount);
   on(inner(), '[data-act="preview"]', 'click', () => {
     const picked = qs(sheet, '#lesson-select').value;
     lessonName = picked === '__new__' ? qs(sheet, '#lesson-new').value.trim() : picked;
-    const rows = parseWordLines(qs(sheet, '#paste').value);
+    const rows = parseWordLines(qs(sheet, '#paste').value, parseMode);
     if (!rows.length) { toast('Paste some words first'); return; }
     draft = rows;
     renderPreview();
@@ -99,6 +132,31 @@ function renderPaste() {
     renderPackPreview();
   });
   qs(sheet, '#paste').focus();
+  updateCount();
+}
+
+function modeHint() {
+  if (parseMode === 'rows2') {
+    return 'Each word takes two lines: the word, then its translation. Leave a blank line between entries if a translation runs long.';
+  }
+  if (parseMode === 'rows3') {
+    return 'Each word takes three lines: word, translation, pronunciation.';
+  }
+  return 'One word per line. Separate the parts with “|”, a tab, a semicolon, a dash, or two or more spaces. Pronunciation is optional.';
+}
+
+/** Live "N words detected" readout under the textarea, so a paste that didn't
+ * come apart the way you expected is obvious before you hit Preview. */
+function updateCount() {
+  const out = qs(sheet, '#parse-count');
+  if (!out) return;
+  const rows = parseWordLines(qs(sheet, '#paste').value, parseMode);
+  if (!rows.length) { out.textContent = ''; return; }
+  const missing = rows.filter((r) => !r.translation).length;
+  const first = rows[0];
+  const peek = first.translation ? `${first.term} → ${first.translation}` : first.term;
+  out.textContent = `${rows.length} word${rows.length === 1 ? '' : 's'} detected — first: ${peek}`
+    + (missing ? ` · ${missing} without a translation` : '');
 }
 
 /** "Add ready-made packs" — a browsable catalog inside the paste step,
@@ -182,12 +240,21 @@ function renderPreview() {
     .map((w) => w.term.toLowerCase()));
   const rows = draft.map((row, i) => {
     const dup = existing.has(row.term.toLowerCase());
-    return `<div class="prow" data-i="${i}">
-      <input class="input" data-f="term" value="${esc(row.term)}" placeholder="Word or phrase">
-      <input class="input" data-f="translation" value="${esc(row.translation)}" placeholder="Translation">
-      <input class="input" data-f="transcription" value="${esc(row.transcription)}" placeholder="Pronunciation">
-      <button class="x" data-act="drop" title="Remove this line" aria-label="Remove">✕</button>
-      ${dup ? '<div class="tiny"><span class="badge-warn">already in your words — won\'t be added again</span></div>' : ''}
+    return `<div class="prow${dup ? ' is-dup' : ''}" data-i="${i}">
+      <div class="pf">
+        <span class="pf-lbl">Word</span>
+        <input data-f="term" value="${esc(row.term)}" placeholder="word or phrase">
+      </div>
+      <div class="pf">
+        <span class="pf-lbl">Translation</span>
+        <input data-f="translation" value="${esc(row.translation)}" placeholder="what it means">
+      </div>
+      <div class="pf">
+        <span class="pf-lbl">Pronunciation</span>
+        <input data-f="transcription" value="${esc(row.transcription)}" placeholder="optional">
+      </div>
+      <button class="x" data-act="drop" title="Remove this entry" aria-label="Remove entry">✕</button>
+      ${dup ? '<div class="pf-note"><span class="badge-warn">already in your words — won\'t be added again</span></div>' : ''}
     </div>`;
   }).join('');
 
@@ -198,8 +265,8 @@ function renderPreview() {
       <h2>${draft.length} word${draft.length === 1 ? '' : 's'}</h2>
       <button class="btn btn-quiet" data-act="close">Cancel</button>
     </div>
-    <p class="hint" style="margin-top:0">Fix anything that came out wrong, or remove a line.</p>
-    <div class="card" style="padding:14px 18px">${rows || '<p class="muted small">Nothing left.</p>'}</div>
+    <p class="hint" style="margin-top:0">Fix anything that came out wrong, or remove an entry.</p>
+    <div class="prow-list">${rows || '<p class="muted small">Nothing left.</p>'}</div>
     <div class="sheet-foot">
       <button class="btn btn-big btn-primary" data-act="add" ${draft.length ? '' : 'disabled'}>${label}</button>
       <div class="center" style="margin-top:8px">

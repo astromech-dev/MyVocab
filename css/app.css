@@ -244,11 +244,73 @@ textarea.input { min-height: 190px; resize: vertical; line-height: 1.6; }
 .hint { font-size: 13px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
 .hint code { background: var(--surface-2); padding: 2px 6px; border-radius: 6px; font-size: 12.5px; }
 
-.prow { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; align-items: center; padding: 8px 0; }
-.prow .input { padding: 10px 12px; font-size: 14.5px; }
-.prow .x { border: 0; background: none; color: var(--muted); font-size: 20px; cursor: pointer; padding: 4px 8px; line-height: 1; }
-.prow .x:hover { color: var(--red); }
-@media (max-width: 620px) { .prow { grid-template-columns: 1fr auto; } .prow .x { grid-row: 1; grid-column: 2; } }
+/* Each pasted entry is one bordered field. Every sub-field carries its own
+ * always-visible label (Word / Translation / Pronunciation), the inputs sit
+ * seamlessly inside split by hairlines, and the ✕ lives in the field's own
+ * corner so it clearly belongs to that entry. */
+.prow-list { margin-top: 4px; }
+.prow {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+.prow + .prow { margin-top: 10px; }
+.prow.is-dup { border-color: var(--red); }
+
+.prow .pf { display: flex; flex-direction: column; min-width: 0; }
+.prow .pf + .pf { border-left: 1px solid var(--line); }
+.prow .pf-lbl {
+  font-size: 10px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 13px 0;
+}
+.prow .pf input {
+  min-width: 0;
+  border: 0; border-radius: 0; background: transparent;
+  font: inherit; font-size: 14.5px; color: var(--ink);
+  padding: 3px 13px 9px;
+}
+.prow .pf input::placeholder { color: var(--muted); font-size: 13px; }
+.prow .pf:focus-within {
+  background: var(--surface-2);
+  outline: 2px solid var(--blue); outline-offset: -2px;
+  position: relative; z-index: 1;
+}
+.prow .pf input:focus { outline: 0; }
+
+.prow .x {
+  align-self: stretch;
+  border: 0; border-left: 1px solid var(--line); background: none;
+  color: var(--muted); font-size: 15px; line-height: 1;
+  cursor: pointer; padding: 0 15px;
+}
+.prow .x:hover { color: var(--red); background: var(--surface-2); }
+
+.prow .pf-note {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--line);
+  padding: 8px 13px;
+}
+
+@media (max-width: 620px) {
+  .prow {
+    position: relative;
+    grid-template-columns: 1fr;
+  }
+  /* fields stack; each keeps its label on top, divided by a hairline */
+  .prow .pf + .pf { border-left: 0; border-top: 1px solid var(--line); }
+  .prow .pf:first-child input { padding-right: 46px; }
+  .prow .x {
+    position: absolute; top: 0; right: 0;
+    align-self: auto; border-left: 0;
+    height: 41px;                 /* sits in the word row, corner of the card */
+    display: flex; align-items: center;
+    font-size: 16px; padding: 0 15px;
+  }
+}
 
 /* --- sheet (full-screen panels) -------------------------------- */
 .sheet {

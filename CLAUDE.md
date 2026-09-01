@@ -140,5 +140,19 @@ should stay `LESSONS = []` going forward.
 ## Word paste format
 
 Shared by `+ Add words` and `seed.js` lessons, parsed by
-[js/wordsformat.js](js/wordsformat.js): `term | translation | pronunciation`
-per line, pronunciation optional, `|`/tab/`;` all accepted as separators.
+[js/wordsformat.js](js/wordsformat.js). `parseWordLines(text, mode)`:
+
+- **`mode: 'columns'`** (default) — one entry per line, fields in the order
+  `term / translation / pronunciation`. Separators accepted between fields:
+  `|`, a tab, `;`, a run of **2+ spaces**, or a **spaced dash** (`-` `–` `—`).
+  Pronunciation optional. A single space is *not* a separator (terms are
+  often multi-word).
+- **`mode: 'rows2'` / `'rows3'`** — each entry spans 2 or 3 consecutive
+  non-blank lines (term, then translation, then pronunciation); a blank line
+  ends the current entry early. For lists pasted with every field on its own
+  line.
+
+The `+ Add words` paste step ([js/screens/addwords.js](js/screens/addwords.js))
+exposes `mode` as a dropdown and shows a live "N words detected" readout under
+the textarea so a mis-parsed paste is obvious before the preview step. `seed.js`
+and `packs.js` always call it with the default `columns` mode.
