@@ -2,8 +2,8 @@
 // New → Learning → Learned, and you decide how much to do and when.
 
 import { esc, on, plural, toast } from '../dom.js';
-import { store, counts, exportBackup, importBackup, recentActivity, activeDeck } from '../store.js';
-import { learningPool, learningPoolLessons, pickNewWords, newWordLessons } from '../srs.js';
+import { store, counts, exportBackup, importBackup, recentActivity, currentStreak, activeDeck } from '../store.js';
+import { learningPool, learningPoolLessons, pickNewWords, newWordLessons, learnedWords, learnedLessons } from '../srs.js';
 import { startIntro, startCarousel, startExam, pickLesson } from '../study.js';
 import { openAddWords } from './addwords.js';
 import { renderOnboarding } from './onboarding.js';
@@ -80,7 +80,9 @@ export function renderOverview(root, rerender, openWords) {
   const pool = learningPool();
   const learnedPct = stats.total ? Math.round((stats.learned / stats.total) * 100) : 0;
   const history = recentActivity(DAYS_SHOWN);
-  const peak = Math.max(1, ...history.map((d) => d.practiced));
+  const peak = Math.max(1, ...history.map((d) => d.practiced)); // divisor for bar heights
+  const streak = currentStreak();
+  const activeDays = history.filter((d) => d.practiced).length;
 
   root.innerHTML = `
     <div class="card">
@@ -109,10 +111,14 @@ export function renderOverview(root, rerender, openWords) {
 
     <p class="section-title">Last ${DAYS_SHOWN} days</p>
     <div class="card">
+      <div class="bars-top">
+        <span>${activeDays ? `Practiced on ${activeDays} of ${DAYS_SHOWN} days` : `No practice in the last ${DAYS_SHOWN} days`}</span>
+        ${streak > 1 ? `<span class="bars-streak">🔥 ${plural(streak, 'day', 'days')} in a row</span>` : ''}
+      </div>
       <div class="bars">
         ${history.map((d) => `<div class="${d.practiced ? 'on' : ''}"
           style="height:${Math.round((d.practiced / peak) * 100)}%"
-          title="${esc(d.key)}: ${d.practiced}"></div>`).join('')}
+          title="${esc(d.label)}: ${plural(d.practiced, 'word', 'words')}"></div>`).join('')}
       </div>
       <div class="bars-x">
         ${history.map((d, i) => `<span>${i === 0 || i === history.length - 1 ? d.label : ''}</span>`).join('')}
@@ -160,7 +166,7 @@ export function renderOverview(root, rerender, openWords) {
     if (!pool.length) return;
     const lessonNames = learningPoolLessons();
     if (lessonNames.length > 1) {
-      pickLesson(lessonNames, (lesson) => startCarousel(learningPool(undefined, undefined, lesson), { onExit: rerender }), { onExit: rerender });
+      pickLesson(lessonNames, (lessons) => startCarousel(learningPool(undefined, undefined, lessons), { onExit: rerender }), { onExit: rerender });
     } else {
       startCarousel(pool, { onExit: rerender });
     }
@@ -170,7 +176,7 @@ export function renderOverview(root, rerender, openWords) {
     if (!stats.new) return;
     const lessonNames = newWordLessons();
     if (lessonNames.length > 1) {
-      pickLesson(lessonNames, (lesson) => startIntro(pickNewWords(NEW_BATCH, undefined, lesson), { onExit: rerender }), { onExit: rerender });
+      pickLesson(lessonNames, (lessons) => startIntro(pickNewWords(NEW_BATCH, undefined, lessons), { onExit: rerender }), { onExit: rerender });
     } else {
       startIntro(pickNewWords(NEW_BATCH), { onExit: rerender });
     }
@@ -178,7 +184,12 @@ export function renderOverview(root, rerender, openWords) {
 
   on(root, '[data-act="exam"]', 'click', () => {
     if (!stats.learned) return;
-    startExam(store.words.filter((w) => w.deckId === store.activeDeckId && w.status === 'learned'), { onExit: rerender });
+    const lessonNames = learnedLessons();
+    if (lessonNames.length > 1) {
+      pickLesson(lessonNames, (lessons) => startExam(learnedWords(undefined, lessons), { onExit: rerender }), { onExit: rerender });
+    } else {
+      startExam(learnedWords(), { onExit: rerender });
+    }
   });
 
   on(root, '[data-act="export"]', 'click', () => { exportBackup(); toast('Backup saved'); });

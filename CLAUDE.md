@@ -68,24 +68,31 @@ mutates a `word` object and recomputes `status` via `refreshStatus()`.
 `study.js` owns the four study sessions (`startIntro`, `startCarousel`,
 `startExam`, `pickLesson`) and renders into the shared `#sheet` panel.
 
-Learning happens in **two day-stages of 2 successful Knews each**,
-`STAGE_REQS = [2, 2]` ([js/srs.js:20](js/srs.js:20)): a word needs 2
-successful Knews on its first day in Learning, then 2 more on a *separate*
-calendar day (4 total) — `applyAnswer()` tracks this per-direction with
-`stageReps`/`stageRepsDay` (today's progress within the current stage) and
-`dayDoneOn` (sets once today's stage is cleared, which is what
-`learningPool()` checks to hide a word from Practice until the next calendar
-day). Hitting both stages sets `status = 'learned'` — no separate age gate
-needed, since two stages structurally require two different days. A miss
-costs one already-earned rep for today's stage (floored at zero), never
-more — bounded, so a run of mistakes can't spiral a word into looping
-dozens of times in one sitting — see `applyAnswer()`
-([js/srs.js:40](js/srs.js:40)). `applyAnswer()` returns `'learned'` /
+A word is **Learned after it's been recalled correctly on `LEARNED_DAYS`
+(4) separate calendar days** ([js/srs.js:24](js/srs.js:24)). Only the
+*first* correct answer of each day counts toward that total — spacing is
+what builds memory — so `applyAnswer()` guards the increment with
+`dir.lastGoodDay` and bumps `dir.goodDays` once per day. **`goodDays` never
+resets**: a skipped day just leaves it where it was, which is the whole
+point (a 150-word backlog drains one day at a time instead of stalling
+because you can't get 2 hits on the same word in one session). Within a day
+a word is drilled `REINFORCE_PER_DAY` (2) times — first correct answer is
+progress, the rest reinforce — then `dir.dayDoneOn` is set and
+`learningPool()` hides it until the next calendar day. `dir.repsToday` /
+`dir.repsTodayDay` track today's count (reset lazily on day turnover — this
+is the *throwaway* counter, not progress). A miss hands back one of today's
+correct answers and, if today had already been counted, un-counts it (both
+floored at zero) — bounded. `applyAnswer()` returns `'learned'` /
 `'day-complete'` / `'continue'` so `study.js`'s carousel knows whether to
-drop the card from today's rotation or keep circulating it. Exam is the only
-path that demotes a Learned word back to Learning (via `learnAgain()`,
-which also powers the manual "Learn again" action in
-[js/screens/worddetail.js](js/screens/worddetail.js)).
+drop the card or keep circulating it; on `'continue'` after a correct
+answer the carousel re-queues with a short gap (`KNEW_GAP_*` in
+[js/study.js](js/study.js)) so the reinforcement rep lands the same session.
+`refreshStatus()` never demotes — Exam is the only path back to Learning
+(via `learnAgain()`, which zeroes `goodDays` and sets the status itself;
+also powers the manual "Learn again" in
+[js/screens/worddetail.js](js/screens/worddetail.js)). Words carried over
+from the older 2-stage model migrate in `normalizeWord()`: the old `level`
+(0-2) maps straight onto `goodDays`.
 
 `startCarousel()` in [js/study.js](js/study.js) orders each session's queue
 with words not yet practiced today first (shuffled among themselves), words
@@ -93,15 +100,22 @@ already practiced today after — so reopening Practice later the same day
 surfaces different words instead of reshuffling the whole pool from scratch
 every time.
 
-**Lesson picker:** when the eligible New or Learning words for Learn/Practice
-span more than one named lesson, `pickLesson()` interrupts with a "Choose a
-lesson" step before the real session starts (`newWordLessons()` /
-`learningPoolLessons()` in `srs.js` decide whether to show it — 0 or 1
-lesson name means skip straight to the session). See the call sites in
+**Lesson picker:** when the eligible words for Learn / Practice / Exam span
+more than one named lesson, `pickLesson()` interrupts with a "Which lessons?"
+step before the real session starts (`newWordLessons()` /
+`learningPoolLessons()` / `learnedLessons()` in `srs.js` decide whether to
+show it — 0 or 1 lesson name means skip straight to the session). It's a checkbox list —
+every lesson starts ticked, plus an "All lessons" select-all row at the top,
+and one primary **Start** button (disabled while nothing is ticked). The
+choice comes back to the caller as `onChoose(lessons)`: `null` when every
+lesson is still ticked, otherwise an array of the ticked lesson names. That
+value is passed straight to the `lessons` argument of `pickNewWords()` /
+`learningPool()` / `learnedWords()` (all accept `null`, a single name, or an
+array, via `lessonFilter()` in `srs.js`). See the call sites in
 [js/screens/overview.js](js/screens/overview.js:146).
 
 **Two-direction support is dormant, not removed:** `DIRECTIONS` in
-[js/srs.js:24](js/srs.js:24) currently only trains target→native (`'fr'`).
+[js/srs.js:32](js/srs.js:32) currently only trains target→native (`'fr'`).
 The reverse direction (`'rf'`) is tracked in the data model
 (`word.dirs.rf`) but excluded from `DIRECTIONS`, so re-enabling it is a
 one-line change, not a data migration.

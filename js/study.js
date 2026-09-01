@@ -1,8 +1,8 @@
 // Three ways to study, each its own thing:
 //  - startIntro    — read through brand-new words, no testing.
 //  - startCarousel — the Learning rotation, self-graded; Knew pushes a card
-//                    further back (or clears it for the day once its stage
-//                    quota is met), Didn't know brings it back sooner.
+//                    further back (or clears it for the day once it's had its
+//                    reinforcement rep), Didn't know brings it back sooner.
 //  - startExam     — a one-shot multiple-choice check over Learned words;
 //                    a miss demotes the word back to Learning right away.
 
@@ -20,10 +20,15 @@ let session = null;
 let onClose = () => {};
 
 // How many other cards get shown before an answered card comes back, as a
-// share of the words still in rotation — not a fixed count, so a "didn't
-// know" doesn't always resurface after exactly N cards regardless of how
-// big the pool is. Small pools naturally collapse to "goes to the end"
-// either way.
+// share of the words still in rotation — not a fixed count, so it doesn't
+// always resurface after exactly N cards regardless of how big the pool is.
+// Small pools naturally collapse to "goes to the end" either way.
+//
+// A card only stays in rotation when it still owes work today: either it was
+// missed, or it was the day's first correct answer and still needs its
+// reinforcement rep. Both should come back *within the session* — capped, so
+// a 150-word pool doesn't bury the second look 100 cards deep — with a miss
+// returning soonest.
 //
 // This is a due-turn scheduler, not an array-position one: each card gets a
 // `dueAt` turn number, and whichever card has the lowest `dueAt` is shown
@@ -33,15 +38,17 @@ let onClose = () => {};
 // queue forever once the pool size stops changing (verified: 30 words, all
 // answered "knew", plateaus at 21/30 ever shown — the rest are never
 // reachable again that session).
-const KNEW_GAP_RATIO = 0.7;     // knew it — goes deeper into the queue
-const KNEW_GAP_MIN = 8;
+const KNEW_GAP_RATIO = 0.25;    // first correct today — comes back to confirm
+const KNEW_GAP_MIN = 10;
+const KNEW_GAP_MAX = 35;
 const UNKNOWN_GAP_RATIO = 0.35; // didn't know — comes back sooner
 const UNKNOWN_GAP_MIN = 4;
 
 function reviewGap(result, poolSize) {
-  const ratio = result === 'knew' ? KNEW_GAP_RATIO : UNKNOWN_GAP_RATIO;
-  const min = result === 'knew' ? KNEW_GAP_MIN : UNKNOWN_GAP_MIN;
-  return Math.max(min, Math.round(poolSize * ratio));
+  if (result === 'knew') {
+    return Math.min(KNEW_GAP_MAX, Math.max(KNEW_GAP_MIN, Math.round(poolSize * KNEW_GAP_RATIO)));
+  }
+  return Math.max(UNKNOWN_GAP_MIN, Math.round(poolSize * UNKNOWN_GAP_RATIO));
 }
 
 /** The queue entry that's due soonest — shown next without being removed. */
@@ -95,15 +102,18 @@ export function startExam(words, { onExit } = {}) {
 }
 
 /**
- * Shown before Learn/Practice whenever the eligible words span more than one
- * named lesson — lets the caller narrow to one lesson (or all) before it
- * fetches the actual words and starts the real session. Calling code decides
- * whether this step is needed (pass fewer than 2 lesson names to skip it) and
- * what to do with the choice (`onChoose(lesson)`, `null` = all lessons).
+ * Shown before Learn/Practice/Exam whenever the eligible words span more than
+ * one named lesson — lets the caller narrow to a subset of lessons (or take
+ * them all) before it fetches the actual words and starts the real session.
+ * Calling code decides whether this step is needed (pass fewer than 2 lesson
+ * names to skip it) and what to do with the choice: `onChoose(lessons)` gets
+ * an array of the picked lesson names, or `null` for all lessons.
  */
 export function pickLesson(lessonNames, onChoose, { onExit } = {}) {
   onClose = onExit || (() => {});
-  session = { kind: 'lesson-pick', lessonNames, onChoose };
+  // Everything is selected to begin with, so the default "just hit Start"
+  // path still means "all lessons" — unchecking is how you narrow it.
+  session = { kind: 'lesson-pick', lessonNames, onChoose, picked: new Set(lessonNames) };
   open(); render();
 }
 
@@ -147,7 +157,7 @@ function reveal() { session.revealed = true; render(); }
 function advanceIntro() {
   const word = session.words[session.index];
   markIntroduced(word);
-  recordActivity();
+  recordActivity(word.id);
   touched();
 
   if (session.index < session.words.length - 1) {
@@ -206,7 +216,7 @@ function answerCarousel(result) {
   const word = getWord(current.wordId);
   if (word) {
     const outcome = applyAnswer(word, 'fr', result);
-    recordActivity();
+    recordActivity(word.id);
     touched();
     if (outcome === 'learned') session.promoted++;
     else if (outcome === 'day-complete') session.doneToday++;
@@ -277,7 +287,7 @@ function chooseOption(i) {
   const q = session.questions[session.index];
   const word = getWord(q.wordId);
   session.chosen = i;
-  recordActivity();
+  recordActivity(q.wordId);
 
   if (i === q.correctIndex) {
     session.correct++;
@@ -356,7 +366,7 @@ function renderExamDone() {
     close();
     const lessonNames = learningPoolLessons();
     if (lessonNames.length > 1) {
-      pickLesson(lessonNames, (lesson) => startCarousel(learningPool(undefined, undefined, lesson), { onExit: exit }), { onExit: exit });
+      pickLesson(lessonNames, (lessons) => startCarousel(learningPool(undefined, undefined, lessons), { onExit: exit }), { onExit: exit });
     } else {
       startCarousel(learningPool(), { onExit: exit });
     }
@@ -382,15 +392,42 @@ function render() {
 }
 
 function renderLessonPick() {
+  const { lessonNames, picked } = session;
+  const all = picked.size === lessonNames.length;
+
   sheet.innerHTML = `<div class="sheet-inner">
-    ${head('Choose a lesson')}
-    <div class="stack">
-      <button class="btn btn-big btn-primary" data-lesson="">All lessons</button>
-      ${session.lessonNames.map((name) => `<button class="btn btn-big btn-ghost" data-lesson="${esc(name)}">${esc(name)}</button>`).join('')}
+    ${head('Which lessons?')}
+    <p class="tiny muted" style="margin:2px 0 4px">Tick the lessons to study, then Start.</p>
+    <ul class="list pick-list">
+      <li><label class="word-row">
+        <input type="checkbox" class="row-check" data-all ${all ? 'checked' : ''}>
+        <span class="col"><span class="term">All lessons</span></span>
+      </label></li>
+      ${lessonNames.map((name) => `<li><label class="word-row">
+        <input type="checkbox" class="row-check" data-lesson="${esc(name)}" ${picked.has(name) ? 'checked' : ''}>
+        <span class="col"><span class="term">${esc(name)}</span></span>
+      </label></li>`).join('')}
+    </ul>
+    <div class="stack" style="margin-top:20px">
+      <button class="btn btn-big btn-primary" data-act="start"${picked.size ? '' : ' disabled'}>Start${picked.size && !all ? ` · ${picked.size} ${picked.size === 1 ? 'lesson' : 'lessons'}` : ''}</button>
     </div>
   </div>`;
+
   on(inner(), '[data-act="close"]', 'click', close);
-  on(inner(), '[data-lesson]', 'click', (el) => session.onChoose(el.dataset.lesson || null));
+  on(inner(), '[data-all]', 'change', () => {
+    if (picked.size === lessonNames.length) picked.clear();
+    else lessonNames.forEach((n) => picked.add(n));
+    render();
+  });
+  on(inner(), '[data-lesson]', 'change', (el) => {
+    const name = el.dataset.lesson;
+    if (picked.has(name)) picked.delete(name); else picked.add(name);
+    render();
+  });
+  on(inner(), '[data-act="start"]', 'click', () => {
+    if (!picked.size) return;
+    session.onChoose(picked.size === lessonNames.length ? null : [...picked]);
+  });
 }
 
 function head(title) {

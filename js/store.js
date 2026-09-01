@@ -13,7 +13,7 @@ export const store = {
   decks: [],          // [{id, name, createdAt}] — one independent vocabulary
   activeDeckId: null,
   words: [],
-  days: {},        // 'YYYY-MM-DD' -> words practiced that day
+  days: {},        // deckId -> { 'YYYY-MM-DD': distinct words reviewed that day }
   seedMerged: [],  // lowercased terms already pulled in from seed.js, ever
 };
 
@@ -79,8 +79,30 @@ function adopt(data) {
   store.decks = decks;
   store.words = words;
   store.activeDeckId = decks.some((d) => d.id === data.activeDeckId) ? data.activeDeckId : (decks[0]?.id ?? null);
-  store.days = data.days && typeof data.days === 'object' ? data.days : {};
+  store.days = migrateDays(data.days, store.decks, store.activeDeckId);
   store.seedMerged = Array.isArray(data.seedMerged) ? data.seedMerged : [];
+}
+
+/**
+ * `days` used to be one flat `{ 'YYYY-MM-DD': count }` map shared across every
+ * deck; it's now per-deck (`{ deckId: { day: count } }`) so the activity chart
+ * is scoped like the rest of the app. Old history predates multiple decks, so
+ * all of it belongs to the single deck that existed back then. Buckets for a
+ * deck that no longer exists are dropped.
+ */
+function migrateDays(raw, decks, activeId) {
+  if (!raw || typeof raw !== 'object') return {};
+  const entries = Object.entries(raw);
+  const nested = entries.every(([, v]) => v && typeof v === 'object');
+  if (nested) {
+    const live = {};
+    for (const [id, bucket] of entries) {
+      if (decks.some((d) => d.id === id)) live[id] = bucket;
+    }
+    return live;
+  }
+  const home = activeId || decks[0]?.id;
+  return home ? { [home]: raw } : {};
 }
 
 /** `target` is read as a fallback so backups saved before the language-pair
@@ -136,13 +158,14 @@ function mergeSeed() {
 /** Fills in anything a future/older version might be missing. */
 function normalizeWord(w) {
   const dir = (d) => ({
-    // A word migrating from the old one-rep-per-day model already carries a
-    // meaningful level (0-3): each point there took a separate calendar day
-    // to earn, same as a completed stage here, so it carries over as-is —
-    // the word just resumes at that stage's quota instead of restarting.
-    level: Number(d?.level) || 0,
-    stageReps: Number(d?.stageReps) || 0,
-    stageRepsDay: d?.stageRepsDay ?? null,
+    // goodDays: separate calendar days this direction has been recalled
+    // correctly (see LEARNED_DAYS in srs.js). Words from the older 2-stage
+    // model carry a `level` (0-2) where each point already took its own
+    // calendar day, so it maps straight onto goodDays with no loss.
+    goodDays: Number(d?.goodDays) || Number(d?.level) || 0,
+    lastGoodDay: d?.lastGoodDay ?? d?.dayDoneOn ?? null,
+    repsToday: Number(d?.repsToday) || 0,
+    repsTodayDay: d?.repsTodayDay ?? null,
     dayDoneOn: d?.dayDoneOn ?? null,
     reps: Number(d?.reps) || 0,
   });
@@ -267,16 +290,35 @@ export function counts(deckId = store.activeDeckId) {
 
 /* --- activity ----------------------------------------------------- */
 
-/** One word answered/reviewed just now — for the activity chart only. */
-export function recordActivity(n = 1) {
+// Words already counted toward today's bar — so a card circling back through
+// the carousel, or re-seen in a later session the same day, is counted once.
+// Rebuilt when the calendar day rolls over.
+let countedDay = null;
+let countedIds = new Set();
+
+/**
+ * One word reviewed just now. The chart counts each distinct word once per
+ * calendar day, per deck — a measure of how much material you covered, not how
+ * many taps it took. `wordId` is looked up so a stale id (word since deleted)
+ * simply doesn't count.
+ */
+export function recordActivity(wordId) {
+  const word = wordId && store.words.find((w) => w.id === wordId);
+  if (!word || !word.deckId) return;
   const key = dayKey();
-  store.days[key] = (store.days[key] || 0) + n;
+  if (countedDay !== key) { countedDay = key; countedIds = new Set(); }
+  const tag = word.deckId + '|' + word.id;
+  if (countedIds.has(tag)) return;
+  countedIds.add(tag);
+  const bucket = store.days[word.deckId] || (store.days[word.deckId] = {});
+  bucket[key] = (bucket[key] || 0) + 1;
   save();
   notify();
 }
 
-/** Last `n` days, oldest first, for a simple activity chart. */
-export function recentActivity(n) {
+/** Last `n` days for one deck, oldest first, for a simple activity chart. */
+export function recentActivity(n, deckId = store.activeDeckId) {
+  const bucket = store.days[deckId] || {};
   const out = [];
   for (let i = n - 1; i >= 0; i--) {
     const ts = Date.now() - i * DAY;
@@ -284,10 +326,28 @@ export function recentActivity(n) {
     out.push({
       key,
       label: new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
-      practiced: store.days[key] || 0,
+      practiced: bucket[key] || 0,
     });
   }
   return out;
+}
+
+/**
+ * Consecutive calendar days with at least one word reviewed, ending today —
+ * or, if nothing has been done yet today, ending yesterday, so an unfinished
+ * day doesn't read as a broken streak.
+ */
+export function currentStreak(deckId = store.activeDeckId) {
+  const bucket = store.days[deckId] || {};
+  const active = (i) => Boolean(bucket[dayKey(Date.now() - i * DAY)]);
+  let i = 0;
+  if (!active(0)) {
+    if (!active(1)) return 0;
+    i = 1;
+  }
+  let streak = 0;
+  while (active(i)) { streak++; i++; }
+  return streak;
 }
 
 /* --- backup ----------------------------------------------------- */
