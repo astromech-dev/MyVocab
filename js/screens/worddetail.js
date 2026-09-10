@@ -2,7 +2,7 @@
 
 import { esc, on, qs, fromNow, toast } from '../dom.js';
 import { getWord, updateWord, deleteWord, touched, lessons } from '../store.js';
-import { markLearned, learnAgain, DIRECTIONS, LEARNED_DAYS } from '../srs.js';
+import { markLearned, learnAgain, isHard, DIRECTIONS, LEARNED_DAYS } from '../srs.js';
 
 const sheet = document.getElementById('sheet');
 
@@ -36,7 +36,10 @@ function render(id) {
 function renderView(word) {
   sheet.innerHTML = `<div class="sheet-inner">
     <div class="sheet-head">
-      <span class="status status-${word.status}">${word.status}</span>
+      <span class="row-tags">
+        ${isHard(word) ? '<span class="status status-hard">hard</span>' : ''}
+        <span class="status status-${word.status}">${word.status}</span>
+      </span>
       <button class="btn btn-quiet" data-act="close">Close</button>
     </div>
 
@@ -61,6 +64,9 @@ function renderView(word) {
       <li><span>Mistakes</span><b>${word.mistakes}</b></li>
       <li><span>Last practiced</span><b>${fromNow(word.lastPracticed)}</b></li>
       ${word.introduced ? `<li><span>Days of recall</span><b>${progressLabel(word)}</b></li>` : ''}
+      ${missBalance(word) ? `<li><span>Miss balance</span><b>${missBalance(word)}</b></li>` : ''}
+      ${fwd(word).examPasses ? `<li><span>Exams passed</span><b>${fwd(word).examPasses}</b></li>` : ''}
+      ${fwd(word).lastExamAt ? `<li><span>Last exam</span><b>${fromNow(fwd(word).lastExamAt)}</b></li>` : ''}
     </ul>
   </div>`;
 
@@ -80,10 +86,19 @@ function renderView(word) {
   });
 }
 
+/** The trained direction. Everything on this screen reports that one — the
+ * reverse direction is an optional exam, not part of a word's progress. */
+const fwd = (word) => word.dirs[DIRECTIONS[0]];
+
+/** The rolling miss balance (see HARD_AT in srs.js) — hidden at zero, which
+ * is where most words sit and where there's nothing to explain. */
+function missBalance(word) {
+  return fwd(word).misses;
+}
+
 function progressLabel(word) {
   if (word.status === 'learned') return 'Learned';
-  const dir = word.dirs[DIRECTIONS[0]];
-  return `${dir.goodDays} of ${LEARNED_DAYS} days`;
+  return `${fwd(word).goodDays} of ${LEARNED_DAYS} days`;
 }
 
 function renderEdit(word) {

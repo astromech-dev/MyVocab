@@ -155,8 +155,32 @@ function mergeSeed() {
   }
 }
 
+// Ceiling for a seeded miss balance (see seedMisses). Mirrors MISS_CAP in
+// srs.js on purpose rather than importing it: srs.js reads `store`, and
+// store.js reaching back into srs.js would make that a cycle.
+const SEED_MISS_CAP = 5;
+
+/**
+ * Words that predate the rolling miss balance get one seeded from their
+ * lifetime record, so the first session after the update already knows which
+ * words have been fighting back rather than starting everybody at zero. Same
+ * arithmetic the live counter uses — a miss up, a correct answer down —
+ * applied to the totals, which flags only words whose misses actually
+ * outnumber their hits.
+ *
+ * Learned words start clean: Practice never touches them, and a "hard" badge
+ * on a finished word says nothing useful.
+ */
+function seedMisses(w) {
+  if (w.status === 'learned') return 0;
+  const mistakes = Number(w.mistakes) || 0;
+  const corrects = Math.max(0, (Number(w.checks) || 0) - mistakes);
+  return Math.max(0, Math.min(SEED_MISS_CAP, mistakes - corrects));
+}
+
 /** Fills in anything a future/older version might be missing. */
 function normalizeWord(w) {
+  const seeded = seedMisses(w);
   const dir = (d) => ({
     // goodDays: separate calendar days this direction has been recalled
     // correctly (see LEARNED_DAYS in srs.js). Words from the older 2-stage
@@ -166,8 +190,22 @@ function normalizeWord(w) {
     lastGoodDay: d?.lastGoodDay ?? d?.dayDoneOn ?? null,
     repsToday: Number(d?.repsToday) || 0,
     repsTodayDay: d?.repsTodayDay ?? null,
+    // Today's latched reinforcement quota — 0 means "not decided yet", which
+    // is also what a mid-day upgrade recomputes from. See applyAnswer.
+    targetToday: Number(d?.targetToday) || 0,
     dayDoneOn: d?.dayDoneOn ?? null,
     reps: Number(d?.reps) || 0,
+    // Rolling miss balance — see HARD_AT in srs.js. Not a lifetime total
+    // (that's `mistakes` below): it pays down on every correct answer. The
+    // field's *absence* is the migration marker — seed from history once,
+    // then the live counter owns it, so a present 0 is left alone.
+    misses: d?.misses === undefined ? seeded : (Number(d.misses) || 0),
+    // Exam bookkeeping, per direction. `lastExamAt` is what orders each
+    // portion (see examBatch in srs.js) — unset means never checked this way
+    // round, which sorts first. `examPasses` is the "how solid is this
+    // really" number, and unlike goodDays it keeps growing past Learned.
+    lastExamAt: d?.lastExamAt ?? null,
+    examPasses: Number(d?.examPasses) || 0,
   });
   return {
     id: w.id || uid(),

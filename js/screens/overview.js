@@ -3,8 +3,8 @@
 
 import { esc, on, plural, toast } from '../dom.js';
 import { store, counts, exportBackup, importBackup, recentActivity, currentStreak, activeDeck } from '../store.js';
-import { learningPool, learningPoolLessons, pickNewWords, newWordLessons, learnedWords, learnedLessons } from '../srs.js';
-import { startIntro, startCarousel, startExam, pickLesson } from '../study.js';
+import { learningPool, learningPoolLessons, practiceSession, pickNewWords, newWordLessons, learnedLessons, examBatch, EXAM_BATCH } from '../srs.js';
+import { startIntro, startCarousel, startExam, pickLesson, pickExamDir } from '../study.js';
 import { openAddWords } from './addwords.js';
 import { renderOnboarding } from './onboarding.js';
 
@@ -132,7 +132,7 @@ export function renderOverview(root, rerender, openWords) {
              <div class="exam-icon ready">✓</div>
              <div class="action-text">
                <p class="small ink-2">Test how well you remember your learned words.</p>
-               <p class="tiny muted" style="margin-top:4px">${plural(stats.learned, 'word', 'words')}</p>
+               <p class="tiny muted" style="margin-top:4px">${plural(stats.learned, 'word', 'words')} learned · ${EXAM_BATCH} per exam</p>
              </div>
            </div>
            <button class="btn btn-primary btn-big" data-act="exam" style="margin-top:16px">Start exam</button>`
@@ -162,13 +162,20 @@ export function renderOverview(root, rerender, openWords) {
   on(root, '[data-act="add"]', 'click', () => openAddWords(rerender));
   on(root, '[data-act="words"]', 'click', (el, e) => { e.preventDefault(); openWords(); });
 
+  // `pool` above is what the card counts; the session itself also gets
+  // filler so a thin pool doesn't march through in one block.
+  const practice = (lessons) => {
+    const { pool: words, filler } = practiceSession(undefined, undefined, lessons);
+    startCarousel(words, { filler, onExit: rerender });
+  };
+
   on(root, '[data-act="practice"]', 'click', () => {
     if (!pool.length) return;
     const lessonNames = learningPoolLessons();
     if (lessonNames.length > 1) {
-      pickLesson(lessonNames, (lessons) => startCarousel(learningPool(undefined, undefined, lessons), { onExit: rerender }), { onExit: rerender });
+      pickLesson(lessonNames, practice, { onExit: rerender });
     } else {
-      startCarousel(pool, { onExit: rerender });
+      practice(null);
     }
   });
 
@@ -182,14 +189,16 @@ export function renderOverview(root, rerender, openWords) {
     }
   });
 
+  // Direction first ("what kind of exam"), then lessons ("over which words").
+  // Either way the session gets one portion, not the whole Learned pile.
   on(root, '[data-act="exam"]', 'click', () => {
     if (!stats.learned) return;
-    const lessonNames = learnedLessons();
-    if (lessonNames.length > 1) {
-      pickLesson(lessonNames, (lessons) => startExam(learnedWords(undefined, lessons), { onExit: rerender }), { onExit: rerender });
-    } else {
-      startExam(learnedWords(), { onExit: rerender });
-    }
+    pickExamDir((dir) => {
+      const go = (lessons) => startExam(examBatch(EXAM_BATCH, dir, undefined, lessons), { dir, onExit: rerender });
+      const lessonNames = learnedLessons();
+      if (lessonNames.length > 1) pickLesson(lessonNames, go, { onExit: rerender });
+      else go(null);
+    }, { onExit: rerender });
   });
 
   on(root, '[data-act="export"]', 'click', () => { exportBackup(); toast('Backup saved'); });

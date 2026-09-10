@@ -2,12 +2,22 @@
 
 import { esc, on, qs, toast } from '../dom.js';
 import { store, lessons, counts, deleteWords } from '../store.js';
+import { isHard } from '../srs.js';
 import { openWord } from './worddetail.js';
 import { openAddWords } from './addwords.js';
 
+// 'hard' is not a status (see isHard in srs.js) — it's the one filter that
+// cuts across New/Learning, which is the point: it's where you come to look
+// at the words that keep beating you.
 const FILTERS = [
-  ['all', 'All'], ['new', 'New'], ['learning', 'Learning'], ['learned', 'Learned'],
+  ['all', 'All'], ['new', 'New'], ['learning', 'Learning'], ['learned', 'Learned'], ['hard', 'Hard'],
 ];
+
+function matchesFilter(word, filter) {
+  if (filter === 'all') return true;
+  if (filter === 'hard') return isHard(word);
+  return word.status === filter;
+}
 
 // Kept between renders so search, filters and an in-progress selection
 // survive coming back to the screen.
@@ -42,7 +52,7 @@ export function renderWords(root, rerender, goBack) {
     <div class="chips" style="margin-top:12px">
       ${FILTERS.map(([key, label]) => `
         <button class="chip" data-filter="${key}" aria-pressed="${view.filter === key}">
-          ${label}${key === 'all' ? '' : ` ${stats[key]}`}
+          ${label}${key === 'all' ? '' : ` ${key === 'hard' ? hardCount() : stats[key]}`}
         </button>`).join('')}
     </div>
 
@@ -123,11 +133,17 @@ function updateList(root) {
   }
 }
 
+/** Not part of `counts()` — that lives in store.js, which stays clear of
+ * srs.js (srs.js reads the store, so the dependency only goes one way). */
+function hardCount() {
+  return store.words.filter((w) => w.deckId === store.activeDeckId && isHard(w)).length;
+}
+
 function filtered() {
   const q = view.q.trim().toLowerCase();
   return store.words
     .filter((w) => w.deckId === store.activeDeckId)
-    .filter((w) => view.filter === 'all' || w.status === view.filter)
+    .filter((w) => matchesFilter(w, view.filter))
     .filter((w) => !view.lesson || w.lesson === view.lesson)
     .filter((w) => !q
       || w.term.toLowerCase().includes(q)
@@ -143,7 +159,10 @@ function row(word, selecting, selected) {
       ${word.transcription ? `<span class="tr" style="display:block">${esc(word.transcription)}</span>` : ''}
       <span class="tl" style="display:block">${esc(word.translation)}</span>
     </span>
-    <span class="status status-${word.status}">${word.status}</span>`;
+    <span class="row-tags">
+      ${isHard(word) ? '<span class="status status-hard">hard</span>' : ''}
+      <span class="status status-${word.status}">${word.status}</span>
+    </span>`;
 
   if (selecting) {
     return `<li><label class="word-row">

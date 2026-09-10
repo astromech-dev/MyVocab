@@ -209,6 +209,11 @@ button.action-card:focus-visible { outline: 2px solid var(--blue); outline-offse
 .status-new     { background: var(--orange-soft); color: var(--orange); }
 .status-learning{ background: var(--blue-soft);   color: var(--blue-ink); }
 .status-learned { background: var(--surface-2);   color: var(--ink-2); }
+/* Words that keep slipping — see isHard in srs.js. Shown in the word list
+   and on the word's own screen, never on a study card: knowing a card is
+   marked hard before you answer colours the self-assessment. */
+.status-hard    { background: var(--red-soft);    color: var(--red); }
+.row-tags { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .badge-warn { background: var(--red-soft); color: var(--red); padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
 
 /* --- word list ------------------------------------------------- */
@@ -355,16 +360,6 @@ textarea.input { min-height: 190px; resize: vertical; line-height: 1.6; }
 .kbd-hint { margin-top: 12px; text-align: center; font-size: 12.5px; color: var(--muted); }
 @media (max-width: 500px) { .kbd-hint { display: none; } }
 
-/* --- multiple choice (exam) ------------------------------------ */
-.mc-options { display: grid; gap: 10px; margin-top: 20px; }
-.mc-option {
-  padding: 16px 18px; border-radius: 16px; border: 1px solid var(--line);
-  background: var(--surface); font-size: 16px; text-align: left; cursor: pointer;
-}
-.mc-option:hover:not(:disabled) { border-color: var(--blue); }
-.mc-option:disabled { cursor: default; }
-.mc-option.mc-correct { background: var(--blue-soft); border-color: var(--blue); color: var(--blue-ink); font-weight: 600; }
-.mc-option.mc-wrong { background: var(--red-soft); border-color: var(--red); color: var(--red); }
 
 .bars-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 12px; font-size: 12.5px; color: var(--muted); }
 .bars-streak { flex: none; color: var(--ink-2); font-weight: 650; }
