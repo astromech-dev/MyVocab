@@ -97,12 +97,28 @@ function migrateDays(raw, decks, activeId) {
   if (nested) {
     const live = {};
     for (const [id, bucket] of entries) {
-      if (decks.some((d) => d.id === id)) live[id] = bucket;
+      if (decks.some((d) => d.id === id)) live[id] = normalizeBucket(bucket);
     }
     return live;
   }
   const home = activeId || decks[0]?.id;
-  return home ? { [home]: raw } : {};
+  return home ? { [home]: normalizeBucket(raw) } : {};
+}
+
+/**
+ * A day used to be a bare count of distinct words reviewed; it's now
+ * `{ practiced, correct, wrong, learned }`. Old days keep their count and
+ * get zeros for the rest — `correct + wrong === 0` with `practiced > 0` is
+ * how the stats screen tells "no breakdown recorded" from "nothing done".
+ */
+function normalizeBucket(bucket) {
+  const out = {};
+  for (const [day, v] of Object.entries(bucket || {})) {
+    out[day] = typeof v === 'number'
+      ? { practiced: v, correct: 0, wrong: 0, learned: 0 }
+      : { practiced: v.practiced || 0, correct: v.correct || 0, wrong: v.wrong || 0, learned: v.learned || 0 };
+  }
+  return out;
 }
 
 /** `target` is read as a fallback so backups saved before the language-pair
@@ -334,27 +350,37 @@ export function counts(deckId = store.activeDeckId) {
 let countedDay = null;
 let countedIds = new Set();
 
+const EMPTY_DAY = { practiced: 0, correct: 0, wrong: 0, learned: 0 };
+
 /**
- * One word reviewed just now. The chart counts each distinct word once per
- * calendar day, per deck — a measure of how much material you covered, not how
- * many taps it took. `wordId` is looked up so a stale id (word since deleted)
- * simply doesn't count.
+ * One word reviewed just now. `practiced` counts each distinct word once per
+ * calendar day, per deck — a measure of how much material you covered, not
+ * how many taps it took. `result` (`'knew'` / `'unknown'`, absent for an
+ * intro card) and `learned` (the answer graduated the word) are tallied on
+ * *every* call: those measure the answers, not the material. `wordId` is
+ * looked up so a stale id (word since deleted) simply doesn't count.
  */
-export function recordActivity(wordId) {
+export function recordActivity(wordId, { result = null, learned = false } = {}) {
   const word = wordId && store.words.find((w) => w.id === wordId);
   if (!word || !word.deckId) return;
   const key = dayKey();
+  const bucket = store.days[word.deckId] || (store.days[word.deckId] = {});
+  const day = bucket[key] || (bucket[key] = { ...EMPTY_DAY });
+  if (result === 'knew') day.correct++;
+  else if (result === 'unknown') day.wrong++;
+  if (learned) day.learned++;
   if (countedDay !== key) { countedDay = key; countedIds = new Set(); }
   const tag = word.deckId + '|' + word.id;
-  if (countedIds.has(tag)) return;
-  countedIds.add(tag);
-  const bucket = store.days[word.deckId] || (store.days[word.deckId] = {});
-  bucket[key] = (bucket[key] || 0) + 1;
+  if (!countedIds.has(tag)) {
+    countedIds.add(tag);
+    day.practiced++;
+  }
   save();
   notify();
 }
 
-/** Last `n` days for one deck, oldest first, for a simple activity chart. */
+/** Last `n` days for one deck, oldest first, for the activity charts. Each
+ * entry carries the day's full tally (see `recordActivity`). */
 export function recentActivity(n, deckId = store.activeDeckId) {
   const bucket = store.days[deckId] || {};
   const out = [];
@@ -363,11 +389,22 @@ export function recentActivity(n, deckId = store.activeDeckId) {
     const key = dayKey(ts);
     out.push({
       key,
+      ts,
       label: new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
-      practiced: bucket[key] || 0,
+      ...(bucket[key] || EMPTY_DAY),
     });
   }
   return out;
+}
+
+/** How many days back this deck's history reaches (today counts as 1), so
+ * the stats screen's "all time" period knows how far to draw. */
+export function activitySpan(deckId = store.activeDeckId) {
+  const keys = Object.keys(store.days[deckId] || {}).filter((k) => store.days[deckId][k].practiced);
+  if (!keys.length) return 0;
+  const first = keys.sort()[0];
+  const ts = new Date(first + 'T00:00:00').getTime();
+  return Math.max(1, Math.floor((Date.now() - ts) / DAY) + 1);
 }
 
 /**
@@ -377,7 +414,7 @@ export function recentActivity(n, deckId = store.activeDeckId) {
  */
 export function currentStreak(deckId = store.activeDeckId) {
   const bucket = store.days[deckId] || {};
-  const active = (i) => Boolean(bucket[dayKey(Date.now() - i * DAY)]);
+  const active = (i) => Boolean(bucket[dayKey(Date.now() - i * DAY)]?.practiced);
   let i = 0;
   if (!active(0)) {
     if (!active(1)) return 0;

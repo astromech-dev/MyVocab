@@ -58,7 +58,7 @@ function actionsBlock(stats, pool) {
   return `<div class="actions">${learnRow}${practiceRow}</div>`;
 }
 
-export function renderOverview(root, rerender, openWords) {
+export function renderOverview(root, rerender, openWords, openStats) {
   if (!activeDeck()) {
     renderOnboarding(root, rerender);
     return;
@@ -83,6 +83,8 @@ export function renderOverview(root, rerender, openWords) {
   const peak = Math.max(1, ...history.map((d) => d.practiced)); // divisor for bar heights
   const streak = currentStreak();
   const activeDays = history.filter((d) => d.practiced).length;
+  const answers = history.reduce((a, d) => a + d.correct + d.wrong, 0);
+  const correctPct = answers ? Math.round((history.reduce((a, d) => a + d.correct, 0) / answers) * 100) : null;
 
   root.innerHTML = `
     <div class="card">
@@ -112,7 +114,7 @@ export function renderOverview(root, rerender, openWords) {
     <p class="section-title">Last ${DAYS_SHOWN} days</p>
     <div class="card">
       <div class="bars-top">
-        <span>${activeDays ? `Practiced on ${activeDays} of ${DAYS_SHOWN} days` : `No practice in the last ${DAYS_SHOWN} days`}</span>
+        <span>${activeDays ? `Practiced on ${activeDays} of ${DAYS_SHOWN} days${correctPct === null ? '' : ` · ${correctPct}% correct`}` : `No practice in the last ${DAYS_SHOWN} days`}</span>
         ${streak > 1 ? `<span class="bars-streak">🔥 ${plural(streak, 'day', 'days')} in a row</span>` : ''}
       </div>
       <div class="bars">
@@ -123,6 +125,7 @@ export function renderOverview(root, rerender, openWords) {
       <div class="bars-x">
         ${history.map((d, i) => `<span>${i === 0 || i === history.length - 1 ? d.label : ''}</span>`).join('')}
       </div>
+      <a href="#" class="bars-link" data-act="stats">Full statistics →</a>
     </div>
 
     <p class="section-title">Exam</p>
@@ -161,6 +164,7 @@ export function renderOverview(root, rerender, openWords) {
 
   on(root, '[data-act="add"]', 'click', () => openAddWords(rerender));
   on(root, '[data-act="words"]', 'click', (el, e) => { e.preventDefault(); openWords(); });
+  on(root, '[data-act="stats"]', 'click', (el, e) => { e.preventDefault(); openStats(); });
 
   // `pool` above is what the card counts; the session itself also gets
   // filler so a thin pool doesn't march through in one block.

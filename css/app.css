@@ -368,6 +368,36 @@ textarea.input { min-height: 190px; resize: vertical; line-height: 1.6; }
 .bars div.on { background: var(--blue); }
 .bars-x { display: flex; gap: 6px; margin-top: 8px; }
 .bars-x span { flex: 1; text-align: center; font-size: 11px; color: var(--muted); }
+.bars-link { display: block; margin-top: 12px; font-size: 13.5px; color: var(--blue-ink); font-weight: 600; }
+
+/* --- statistics ------------------------------------------------ */
+.chips-small .chip { padding: 6px 12px; font-size: 13px; }
+.stat-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 500px) { .stat-tiles { grid-template-columns: repeat(2, 1fr); } }
+.stat-tile { background: var(--surface-2); border-radius: var(--r-sm); padding: 12px 12px 10px; min-width: 0; }
+.stat-tile b { display: block; font-size: 24px; font-weight: 650; letter-spacing: -.02em; line-height: 1.1; }
+.stat-tile span { display: block; margin-top: 3px; font-size: 12px; color: var(--muted); }
+.stat-tile b.ok, .stat-table .ok { color: var(--blue-ink); }
+.stat-tile b.bad, .stat-table .bad { color: var(--red); }
+.stat-tile b.done, .stat-table .done { color: #3E9A78; }
+.chart { display: flex; align-items: flex-end; gap: 4px; height: 128px; }
+.chart .col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; }
+.chart .col i { display: block; flex: none; }
+.chart .col i:first-child { border-radius: 5px 5px 0 0; }
+.chart .col i:last-child { border-radius: 0 0 3px 3px; }
+.chart .col i:only-child { border-radius: 5px 5px 3px 3px; }
+.chart .col i.ok { background: var(--blue); }
+.chart .col i.bad { background: var(--red); }
+.chart .col i.done { background: var(--done); }
+.chart .col i.stub { background: var(--blue-soft); height: 3px; }
+.chart-x { display: flex; gap: 4px; margin-top: 8px; }
+.chart-x span { flex: 1; min-width: 0; text-align: center; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chart-x.ends { justify-content: space-between; }
+.chart-x.ends span { flex: none; overflow: visible; }
+.stat-table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.stat-table th { text-align: right; font-weight: 600; font-size: 11.5px; color: var(--muted); padding: 0 0 8px 8px; white-space: nowrap; }
+.stat-table td { text-align: right; padding: 9px 0 9px 8px; border-top: 1px solid var(--line); white-space: nowrap; }
+.stat-table th:first-child, .stat-table td:first-child { text-align: left; padding-left: 0; }
 
 /* --- results --------------------------------------------------- */
 .result-num { font-size: 54px; font-weight: 650; letter-spacing: -.03em; line-height: 1; }

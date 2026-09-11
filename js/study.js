@@ -335,7 +335,7 @@ function answerCarousel(result) {
   const word = getWord(current.wordId);
   if (word) {
     const outcome = applyAnswer(word, 'fr', result);
-    recordActivity(word.id);
+    recordActivity(word.id, { result, learned: outcome === 'learned' });
     touched();
     // A missed filler card is real work again — it just cost today's credit.
     if (result === 'unknown') current.filler = false;
@@ -409,7 +409,7 @@ function renderCarouselDone() {
 
 function answerExam(answer) {
   const word = session.words[session.index];
-  recordActivity(word.id);
+  recordActivity(word.id, { result: answer });
   applyExamAnswer(word, session.dir, answer);
   touched();
 

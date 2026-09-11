@@ -1,6 +1,6 @@
 // Offline: cache the app shell on install, serve from cache first.
 // Bump CACHE whenever a file below changes so browsers pick up the new version.
-const CACHE = 'myvocab-v28';
+const CACHE = 'myvocab-v30';
 
 const SHELL = [
   './',
@@ -21,6 +21,7 @@ const SHELL = [
   'js/screens/words.js',
   'js/screens/addwords.js',
   'js/screens/worddetail.js',
+  'js/screens/stats.js',
   'icons/icon.svg',
   'icons/icon-192.png',
   'icons/icon-512.png',
@@ -30,8 +31,12 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
+  // `cache: 'reload'` skips the browser's HTTP cache, which would otherwise
+  // hand a bumped CACHE the same stale files a plain reload just served.
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting())
+    caches.open(CACHE)
+      .then((cache) => cache.addAll(SHELL.map((url) => new Request(url, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
   );
 });
 

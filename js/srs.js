@@ -306,7 +306,12 @@ function practiceFiller(count, deckId = store.activeDeckId, now = Date.now(), le
  */
 export function practiceSession(deckId = store.activeDeckId, now = Date.now(), lessons = null) {
   const pool = learningPool(deckId, now, lessons);
-  return { pool, filler: practiceFiller(PRACTICE_ROTATION - pool.length, deckId, now, lessons) };
+  // Filler follows the pool's lessons, not the whole deck. The picker is
+  // skipped when only one lesson still owes work, so `lessons` arrives as
+  // null — and a deck-wide filler then pads those few words with every
+  // lesson already finished today, none of which the learner chose.
+  const scope = lessons ?? [...new Set(pool.map((w) => w.lesson))];
+  return { pool, filler: practiceFiller(PRACTICE_ROTATION - pool.length, deckId, now, scope) };
 }
 
 function namedLessons(words) {

@@ -30,7 +30,10 @@ files are what ships.
 **After changing any file listed in `SHELL` in [sw.js](sw.js:5), bump the
 `CACHE` constant** ([sw.js:3](sw.js:3)) or returning visitors keep the stale
 cached version (the service worker serves cache as the offline fallback and
-its own list of cached files is not auto-derived).
+its own list of cached files is not auto-derived). The install step fetches
+the shell with `cache: 'reload'` so the bump can't be defeated by the
+browser's own HTTP cache (GitHub Pages sends `max-age=600`; the local dev
+server's `Last-Modified` gets heuristically cached too).
 
 ## Architecture
 
@@ -189,7 +192,11 @@ cannot move. A *miss* on filler is real work again (it costs today's credit
 like any miss), and `answerCarousel` clears the entry's `filler` flag so the
 session summary counts it. `startCarousel` **weaves** filler through the
 group order rather than appending it — trailing filler would leave the real
-words in the same block it was added to break up.
+words in the same block it was added to break up. Filler is scoped to the
+**pool's own lessons**, not the deck: the lesson picker is skipped when only
+one lesson still owes work, so `lessons` arrives as `null`, and a deck-wide
+filler would pad those few words with every lesson already finished today —
+none of which the learner picked.
 
 **Lesson picker:** when the eligible words for Learn / Practice / Exam span
 more than one named lesson, `pickLesson()` interrupts with a "Which lessons?"
@@ -251,9 +258,23 @@ already reachable through the exam's direction picker; adding it to
 
 **Screens** (`js/screens/*.js`) are the only consumers of `store.js` +
 `srs.js` + `study.js` for a given piece of UI; `js/app.js` just switches
-between `overview` and `words`, `js/deckbar.js` renders the deck switcher
-(outside `#screen`, hence its own refresh call — see the comment in
+between `overview`, `words` and `stats`, `js/deckbar.js` renders the deck
+switcher (outside `#screen`, hence its own refresh call — see the comment in
 [js/app.js:14](js/app.js:14)).
+
+**Activity history** is `store.days[deckId][YYYY-MM-DD] = { practiced,
+correct, wrong, learned }`. `practiced` counts each distinct word once per
+day (dedup lives in memory, `countedIds` in `store.js`, so it is per page
+load); the other three are tallied on *every* `recordActivity()` call —
+`study.js` passes `{ result, learned }` from the carousel and `{ result }`
+from the exam, nothing from intro cards. Days recorded before the split were
+a bare number and migrate to `{ practiced: n, correct: 0, wrong: 0, learned: 0 }`
+in `normalizeBucket()`; `correct + wrong === 0` with `practiced > 0` is how
+[js/screens/stats.js](js/screens/stats.js) knows to show "–" instead of
+"0%" for those days. The overview keeps its 14-day strip and links to the
+Statistics screen, which offers 2 weeks / month / 3 months / year / all
+time and folds days into weeks past a month and into months past a season
+(`bucketize()`), because 90 daily bars don't fit a phone.
 
 ## The seed.js word-import workflow — read before touching js/seed.js
 
