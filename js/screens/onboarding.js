@@ -4,6 +4,7 @@
 
 import { on, toast, plural } from '../dom.js';
 import { addDeck, importBackup } from '../store.js';
+import { deckFields, wireDeckFields } from '../deckform.js';
 
 let step = 'welcome'; // 'welcome' | 'create'
 
@@ -21,8 +22,8 @@ function renderWelcome(root, rerender) {
     </p>
     <div class="stack" style="max-width:280px;margin:26px auto 0">
       <button class="btn btn-big btn-primary" data-act="start">Get started</button>
-      <button class="btn btn-link" data-act="restore" style="width:100%">Restore from backup</button>
     </div>
+    <p class="small ink-2" style="margin-top:18px">Already have a vocabulary on another device? <button class="btn btn-link btn-inline" data-act="restore">Restore from backup</button></p>
     <input type="file" id="restore-file" accept="application/json,.json" hidden>
   </div>`;
 
@@ -46,27 +47,26 @@ function renderCreate(root, rerender) {
   root.innerHTML = `<div class="card empty">
     <strong>Create your first vocabulary</strong>
     <p class="small ink-2" style="max-width:32ch;margin:8px auto 22px">
-      Give it a name. You can create more later, and each vocabulary will keep
-      its own words and progress.
+      Pick the language you're learning and the one you'll learn it in. You can
+      create more vocabularies later, each with its own words and progress.
     </p>
-    <div style="max-width:280px;margin:0 auto;text-align:left">
-      <label class="field" style="margin-top:0"><span>Vocabulary name</span>
-        <input class="input" id="f-name" placeholder="e.g. Armenian" autocomplete="off"></label>
+    <div style="max-width:320px;margin:0 auto;text-align:left">
+      ${deckFields()}
     </div>
     <button class="btn btn-primary" style="margin-top:20px" data-act="create">Create vocabulary</button>
   </div>`;
 
+  const read = wireDeckFields(root);
   const create = () => {
-    const name = root.querySelector('#f-name').value.trim();
-    if (!name) { toast('Name your vocabulary'); return; }
-    addDeck(name);
+    const fields = read();
+    if (!fields) return;
+    addDeck(fields);
     step = 'welcome';
     rerender();
   };
   on(root, '[data-act="create"]', 'click', create);
-  const input = root.querySelector('#f-name');
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') create(); });
-  input.focus();
+  root.querySelector('#f-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') create(); });
+  root.querySelector('#f-lang').focus();
 }
 
 export function renderOnboarding(root, rerender) {

@@ -3,12 +3,19 @@
 // these are never auto-merged: a pack only reaches localStorage when the
 // user explicitly picks it in the "Add a pack" flow (js/screens/packs.js).
 //
+// Each pack is written for one language pair: `lang` is the language being
+// learned (the terms), `via` the language of the translations — same codes
+// as a deck's (js/languages.js). "+ Add words" only offers packs whose pair
+// matches the active vocabulary.
+//
 // Same "term | translation | pronunciation" format as "+ Add words" and the
 // old seed lessons, parsed with the same parseWordLines().
 import { parseWordLines } from './wordsformat.js';
 
 const RAW = {
   'biz-meetings': {
+    lang: 'en',
+    via: 'ru',
     name: 'Business Meetings & Correspondence',
     text: `agenda | повестка дня | /əˈdʒendə/
 to reschedule | перенести (встречу) | /ˌriːˈʃedjuːl/
@@ -42,6 +49,8 @@ conflicting schedule | пересечение по времени в распи�
 to wrap up | подытожить, завершить | /ræp ʌp/`,
   },
   'finance-investing': {
+    lang: 'en',
+    via: 'ru',
     name: 'Finance & Investing',
     text: `market outlook | прогноз по рынку / рыночные перспективы | /ˈmɑːkɪt ˈaʊtlʊk/
 investor sentiment | настроения инвесторов | /ɪnˈvestə ˈsentɪmənt/
@@ -76,17 +85,20 @@ to hedge against | хеджироваться от | /hedʒ əˈɡenst/`,
   },
 };
 
-/** Curated packs, grouped by language for display — only English for now. */
-export const PACK_LANGUAGES = [
-  { lang: 'English', packIds: ['biz-meetings', 'finance-investing'] },
-];
-
 export const PACKS = Object.entries(RAW).map(([id, p]) => ({
   id,
+  lang: p.lang,
+  via: p.via,
   name: p.name,
   words: parseWordLines(p.text),
 }));
 
 export function getPack(id) {
   return PACKS.find((p) => p.id === id);
+}
+
+/** Packs for this vocabulary's language pair; none until the pair is set. */
+export function packsFor(deck) {
+  if (!deck?.lang || !deck?.via) return [];
+  return PACKS.filter((p) => p.lang === deck.lang && p.via === deck.via);
 }

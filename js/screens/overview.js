@@ -7,6 +7,7 @@ import { learningPool, learningPoolLessons, practiceSession, pickNewWords, newWo
 import { startIntro, startCarousel, startExam, pickLesson, pickExamDir } from '../study.js';
 import { openAddWords } from './addwords.js';
 import { renderOnboarding } from './onboarding.js';
+import { openEditDeck } from '../deckbar.js';
 
 const NEW_BATCH = 10;
 const DAYS_SHOWN = 14;
@@ -58,6 +59,19 @@ function actionsBlock(stats, pool) {
   return `<div class="actions">${learnRow}${practiceRow}</div>`;
 }
 
+/** Vocabularies from before languages existed have no pair yet. Nothing is
+ * broken without one — it only decides which packs are offered — so this is
+ * an invitation, not a gate. */
+function langNotice() {
+  const deck = activeDeck();
+  if (deck.lang && deck.via) return '';
+  return `<div class="card notice">
+    <p class="small ink-2"><b>Which language is this vocabulary?</b> Set it once to get
+      ready-made packs for it. Your words and progress stay as they are.</p>
+    <button class="btn btn-ghost" data-act="set-lang" style="margin-top:12px">Set languages</button>
+  </div>`;
+}
+
 export function renderOverview(root, rerender, openWords, openStats) {
   if (!activeDeck()) {
     renderOnboarding(root, rerender);
@@ -67,13 +81,17 @@ export function renderOverview(root, rerender, openWords, openStats) {
   const stats = counts();
 
   if (!stats.total) {
-    root.innerHTML = `<div class="card empty">
+    root.innerHTML = `${langNotice()}<div class="card empty">
       <strong>No words yet</strong>
       <p style="max-width:34ch;margin:0 auto 22px">Add the words from your last lesson and start
         learning them whenever you like.</p>
       <button class="btn btn-primary" data-act="add">+ Add words</button>
+      <p class="small ink-2" style="margin:20px auto 0;max-width:34ch">Already have a vocabulary on another device? <button class="btn btn-link btn-inline" data-act="import">Restore from backup</button></p>
+      <input type="file" id="file" accept="application/json,.json" hidden>
     </div>`;
     on(root, '[data-act="add"]', 'click', () => openAddWords(rerender));
+    on(root, '[data-act="set-lang"]', 'click', () => openEditDeck(rerender));
+    wireRestore(root, rerender);
     return;
   }
 
@@ -87,6 +105,7 @@ export function renderOverview(root, rerender, openWords, openStats) {
   const correctPct = answers ? Math.round((history.reduce((a, d) => a + d.correct, 0) / answers) * 100) : null;
 
   root.innerHTML = `
+    ${langNotice()}
     <div class="card">
       <div class="status-row-top">
         <div class="pct">${learnedPct}%<em>learned</em></div>
@@ -163,6 +182,7 @@ export function renderOverview(root, rerender, openWords, openStats) {
   `;
 
   on(root, '[data-act="add"]', 'click', () => openAddWords(rerender));
+  on(root, '[data-act="set-lang"]', 'click', () => openEditDeck(rerender));
   on(root, '[data-act="words"]', 'click', (el, e) => { e.preventDefault(); openWords(); });
   on(root, '[data-act="stats"]', 'click', (el, e) => { e.preventDefault(); openStats(); });
 
@@ -206,11 +226,18 @@ export function renderOverview(root, rerender, openWords, openStats) {
   });
 
   on(root, '[data-act="export"]', 'click', () => { exportBackup(); toast('Backup saved'); });
+  wireRestore(root, rerender);
+}
+
+/** "Restore backup", on both the full overview and an empty vocabulary — a
+ * vocabulary created before remembering the backup must not be a dead end.
+ * Only asks to confirm when there's something to lose. */
+function wireRestore(root, rerender) {
   on(root, '[data-act="import"]', 'click', () => root.querySelector('#file').click());
   root.querySelector('#file').addEventListener('change', async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    if (!confirm('Restoring replaces all words and progress currently in this browser. Continue?')) {
+    if (store.words.length && !confirm('Restoring replaces all words and progress currently in this browser. Continue?')) {
       event.target.value = '';
       return;
     }

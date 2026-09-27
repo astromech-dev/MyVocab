@@ -4,13 +4,14 @@
 import { dayKey } from './dom.js';
 import { parseWordLines } from './wordsformat.js';
 import { LESSONS as SEED } from './seed.js';
+import { guessLang } from './languages.js';
 
 const KEY = 'myvocab.v1';
 const DAY = 86400000;
 
 export const store = {
-  version: 4,
-  decks: [],          // [{id, name, createdAt}] — one independent vocabulary
+  version: 5,
+  decks: [],          // [{id, name, lang, via, createdAt}] — one independent vocabulary
   activeDeckId: null,
   words: [],
   days: {},        // deckId -> { 'YYYY-MM-DD': distinct words reviewed that day }
@@ -121,12 +122,16 @@ function normalizeBucket(bucket) {
   return out;
 }
 
-/** `target` is read as a fallback so backups saved before the language-pair
- * fields were dropped still recover a sensible name. */
+/** `lang` / `via` are language codes (js/languages.js) or free text, `null`
+ * for decks created before languages existed — those keep working and the
+ * overview asks for the pair. `target`/`native` are read as a fallback so
+ * backups from the old free-text language pair still recover what they can. */
 function normalizeDeck(d) {
   return {
     id: d.id || uid(),
     name: String(d.name || d.target || '').trim() || 'Vocabulary',
+    lang: d.lang || guessLang(d.target) || null,
+    via: d.via || guessLang(d.native) || null,
     createdAt: d.createdAt || Date.now(),
   };
 }
@@ -259,13 +264,25 @@ export function setActiveDeck(id) {
 }
 
 /** New vocabulary. Becomes the active deck. */
-export function addDeck(name) {
-  const deck = normalizeDeck({ name });
+export function addDeck({ name, lang = null, via = null }) {
+  const deck = normalizeDeck({ name, lang, via });
   store.decks.push(deck);
   store.activeDeckId = deck.id;
   save();
   notify();
   return deck;
+}
+
+/** Rename a vocabulary or set its language pair. Words, progress and
+ * history are keyed by deck id, so none of them move. */
+export function updateDeck(id, { name, lang, via }) {
+  const deck = store.decks.find((d) => d.id === id);
+  if (!deck) return;
+  if (name !== undefined) deck.name = String(name).trim() || deck.name;
+  if (lang !== undefined) deck.lang = lang || null;
+  if (via !== undefined) deck.via = via || null;
+  save();
+  notify();
 }
 
 /* --- words ------------------------------------------------------ */

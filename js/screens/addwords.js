@@ -1,9 +1,10 @@
 // "+ Add words": paste a list, check the preview, add. Two taps, no import wizard.
 
 import { esc, on, qs, qsa, toast } from '../dom.js';
-import { store, addWords, lessons } from '../store.js';
+import { store, addWords, lessons, activeDeck } from '../store.js';
 import { parseWordLines } from '../wordsformat.js';
-import { PACK_LANGUAGES, getPack } from '../packs.js';
+import { packsFor, getPack } from '../packs.js';
+import { langName } from '../languages.js';
 
 const sheet = document.getElementById('sheet');
 
@@ -159,37 +160,40 @@ function updateCount() {
     + (missing ? ` · ${missing} without a translation` : '');
 }
 
-/** "Add ready-made packs" — a browsable catalog inside the paste step,
- * grouped by language (only English for now, see js/packs.js). A pack whose
- * every term is already in this deck (case-insensitive, same check addWords()
- * uses) shows as added and can't be tapped again — no separate "added packs"
- * list to keep in sync, it's just derived from store.words each render. */
+/** "Add ready-made packs" — the catalog for this vocabulary's language pair
+ * (js/packs.js), inside the paste step. A pack whose every term is already
+ * in this deck (case-insensitive, same check addWords() uses) shows as added
+ * and can't be tapped again — no separate "added packs" list to keep in
+ * sync, it's just derived from store.words each render. A deck with no
+ * language pair set (created before languages existed) gets a pointer to
+ * "Edit vocabulary" instead, so its packs aren't silently missing. */
 function packsSection() {
-  if (!PACK_LANGUAGES.length) return '';
+  const deck = activeDeck();
+  if (!deck?.lang || !deck?.via) {
+    return `<p class="section-title" style="margin-top:26px">Add ready-made packs</p>
+      <p class="hint" style="margin-top:0">Set this vocabulary's languages (the vocabulary menu at the top → Edit) to see packs made for it.</p>`;
+  }
+  const packs = packsFor(deck);
+  if (!packs.length) return '';
   const existing = new Set(store.words
     .filter((w) => w.deckId === store.activeDeckId)
     .map((w) => w.term.toLowerCase()));
-  const groups = PACK_LANGUAGES.map(({ lang, packIds }) => {
-    const packs = packIds.map(getPack).filter(Boolean);
-    if (!packs.length) return '';
-    return `<p class="tiny muted" style="margin:14px 0 8px">${esc(lang)}</p>
-      <div class="actions">
-        ${packs.map((p) => {
-          const added = p.words.every((w) => existing.has(w.term.toLowerCase()));
-          return `<button class="action-card${added ? ' disabled' : ''}" type="button"
-            data-pack="${esc(p.id)}" ${added ? 'disabled aria-label="Already added"' : ''}>
-            <div class="action-icon">${added ? '✓' : '📚'}</div>
-            <div class="action-text">
-              <div class="t">${esc(p.name)}</div>
-              <div class="s">${added ? 'Added' : `${p.words.length} words`}</div>
-            </div>
-            ${added ? '' : '<span class="action-go" aria-hidden="true">→</span>'}
-          </button>`;
-        }).join('')}
-      </div>`;
-  }).join('');
-  if (!groups) return '';
-  return `<p class="section-title" style="margin-top:26px">Add ready-made packs</p>${groups}`;
+  return `<p class="section-title" style="margin-top:26px">Add ready-made packs</p>
+    <p class="tiny muted" style="margin:14px 0 8px">${esc(langName(deck.lang))} → ${esc(langName(deck.via))}</p>
+    <div class="actions">
+      ${packs.map((p) => {
+        const added = p.words.every((w) => existing.has(w.term.toLowerCase()));
+        return `<button class="action-card${added ? ' disabled' : ''}" type="button"
+          data-pack="${esc(p.id)}" ${added ? 'disabled aria-label="Already added"' : ''}>
+          <div class="action-icon">${added ? '✓' : '📚'}</div>
+          <div class="action-text">
+            <div class="t">${esc(p.name)}</div>
+            <div class="s">${added ? 'Added' : `${p.words.length} words`}</div>
+          </div>
+          ${added ? '' : '<span class="action-go" aria-hidden="true">→</span>'}
+        </button>`;
+      }).join('')}
+    </div>`;
 }
 
 /* --- pack preview: read-only list, one tap to add ---------------- */

@@ -105,6 +105,8 @@ h1, h2, h3, p { margin: 0; }
 .btn-ghost:hover { background: var(--surface-2); }
 .btn-link { background: transparent; color: var(--blue); padding: 12px 4px; }
 .btn-link:hover { color: #1a53d8; }
+/* A link sitting inside a sentence ("Already have… Restore from backup"). */
+.btn-inline { display: inline; padding: 0; font-size: inherit; vertical-align: baseline; }
 .btn-quiet { background: transparent; color: var(--ink-2); padding: 10px 12px; }
 .btn-quiet:hover { color: var(--ink); }
 .btn-danger { background: transparent; border-color: var(--line); color: var(--red); }
@@ -120,6 +122,7 @@ h1, h2, h3, p { margin: 0; }
   border-radius: var(--r-lg); padding: 24px; box-shadow: var(--shadow);
 }
 .card + .card, .stack > * + * { margin-top: 14px; }
+.card.notice { background: var(--blue-soft); border-color: transparent; }
 .section-title {
   font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
   color: var(--muted); margin: 26px 0 12px;
@@ -131,6 +134,7 @@ h1, h2, h3, p { margin: 0; }
 .tiny { font-size: 13px; }
 .center { text-align: center; }
 .empty { padding: 44px 24px; text-align: center; color: var(--muted); }
+.empty .input, .empty .h1 { color: var(--ink); }
 .empty strong { display: block; color: var(--ink); font-size: 18px; margin-bottom: 6px; }
 
 /* --- today ----------------------------------------------------- */
@@ -243,6 +247,11 @@ label.field > span { display: block; font-size: 13px; font-weight: 550; color: v
 .input, textarea.input {
   width: 100%; padding: 13px 15px; border: 1px solid var(--line);
   border-radius: var(--r-md); background: var(--surface);
+}
+select.input {
+  appearance: none; -webkit-appearance: none; padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238A8A93' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 16px center;
 }
 .input:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: transparent; }
 textarea.input { min-height: 190px; resize: vertical; line-height: 1.6; }

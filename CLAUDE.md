@@ -54,9 +54,20 @@ they read `store` accessors and call `subscribe()` or re-run `render()`
 after any mutating call (`addWords`, `updateWord`, `touched()`, etc., which
 all `save()` + `notify()`).
 
-**Data model:** `store.decks` are independent vocabularies (just `{id, name,
-createdAt}` — the `deck` naming is internal only, user-facing label is always
-"vocabulary", never "dictionary" or "language pair"); `store.words` all carry
+**Data model:** `store.decks` are independent vocabularies (`{id, name,
+lang, via, createdAt}` — the `deck` naming is internal only, user-facing label
+is always "vocabulary", never "dictionary" or "language pair"). `lang` is the
+language being learned, `via` the language the translations are in — so an
+Armenian can learn Turkish through English. Both are codes from
+[js/languages.js](js/languages.js) or a free-text name ("Other…"), and `null`
+on decks created before languages existed (store v5): those work unchanged,
+the overview shows a "Set languages" notice, and nothing is guessed until the
+user confirms in the Edit sheet. The three fields live in
+[js/deckform.js](js/deckform.js), shared by onboarding, "+ New vocabulary"
+and "Edit vocabulary" (both in the deck switcher). Ready-made packs in
+[js/packs.js](js/packs.js) carry the same `lang`/`via` pair and "+ Add words"
+only offers packs matching the active deck exactly (`packsFor()`).
+`store.words` all carry
 a `deckId` and every deck-scoped query (`counts`, `lessons`, `pickNewWords`,
 `learningPool`, exam building) filters by it. Adding a second deck never
 touches another deck's words or progress. [js/screens/overview.js](js/screens/overview.js:62)
