@@ -107,17 +107,24 @@ function table(buckets) {
         <th>${daily ? 'Day' : 'Period'}</th>
         ${daily ? '<th title="Words practiced that day">Words</th>' : ''}
         <th title="Cards answered, repeats included">Answers</th>
-        <th title="Share of answers that were right">Right</th>
+        <th title="Right answers, and their share">Right</th>
+        <th title="Wrong answers, and their share">Wrong</th>
         <th title="Words that became Learned">Learned</th>
       </tr></thead>
       <tbody>${rows.map((b) => {
         const answers = b.correct + b.wrong;
+        // Count on top, share of the row's answers under it.
+        // Wrong is 100 minus right, so the pair never rounds to 101%.
         const acc = pct(b.correct, answers);
+        const split = (n, share, cls) => (answers
+          ? `${n ? `<span class="${cls}">${n}</span>` : '0'}<span class="pct">${share}%</span>`
+          : dash);
         return `<tr>
           <td>${esc(b.label)}</td>
           ${daily ? `<td>${b.practiced}</td>` : ''}
           <td>${answers || dash}</td>
-          <td>${acc === null ? dash : `<span class="ok">${acc}%</span>`}</td>
+          <td>${split(b.correct, acc, 'ok')}</td>
+          <td>${split(b.wrong, 100 - acc, 'bad')}</td>
           <td>${b.learned ? `<span class="done">+${b.learned}</span>` : dash}</td>
         </tr>`;
       }).join('')}</tbody>
@@ -147,9 +154,10 @@ export function renderStats(root, rerender, goBack) {
 
     <div class="card" style="margin-top:14px">
       ${total.practiced ? `
-        <div class="stat-tiles stat-tiles-3">
+        <div class="stat-tiles">
           <div class="stat-tile"><b>${words}</b><span>${words === 1 ? 'word' : 'words'} practiced</span></div>
           <div class="stat-tile"><b class="${accuracy === null ? '' : 'ok'}">${accuracy === null ? '–' : `${accuracy}%`}</b><span>right answers</span>${answers ? `<span>${total.correct} of ${answers}</span>` : ''}</div>
+          <div class="stat-tile"><b class="${total.wrong ? 'bad' : ''}">${accuracy === null ? '–' : `${100 - accuracy}%`}</b><span>wrong answers</span>${answers ? `<span>${total.wrong} of ${answers}</span>` : ''}</div>
           <div class="stat-tile"><b class="${total.learned ? 'done' : ''}">${total.learned ? `+${total.learned}` : '–'}</b><span>words learned</span></div>
         </div>
         ${streak > 1 ? `<div class="bars-top" style="margin:14px 0 0"><span></span><span class="bars-streak">🔥 ${plural(streak, 'day', 'days')} in a row</span></div>` : ''}`
