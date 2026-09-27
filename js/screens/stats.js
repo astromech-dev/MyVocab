@@ -155,10 +155,10 @@ export function renderStats(root, rerender, goBack) {
     <div class="card" style="margin-top:14px">
       ${total.practiced ? `
         <div class="stat-tiles">
-          <div class="stat-tile"><b>${words}</b><span>${words === 1 ? 'word' : 'words'} practiced</span></div>
-          <div class="stat-tile"><b class="${accuracy === null ? '' : 'ok'}">${accuracy === null ? '–' : `${accuracy}%`}</b><span>right answers</span>${answers ? `<span>${total.correct} of ${answers}</span>` : ''}</div>
-          <div class="stat-tile"><b class="${total.wrong ? 'bad' : ''}">${accuracy === null ? '–' : `${100 - accuracy}%`}</b><span>wrong answers</span>${answers ? `<span>${total.wrong} of ${answers}</span>` : ''}</div>
-          <div class="stat-tile"><b class="${total.learned ? 'done' : ''}">${total.learned ? `+${total.learned}` : '–'}</b><span>words learned</span></div>
+          <div class="stat-tile"><em>Words practiced</em><b>${words}</b></div>
+          <div class="stat-tile"><em>Right answers</em><b class="${accuracy === null ? '' : 'ok'}">${accuracy === null ? '–' : `${accuracy}%`}</b>${answers ? `<span>${total.correct} of ${answers}</span>` : ''}</div>
+          <div class="stat-tile"><em>Wrong answers</em><b class="${total.wrong ? 'bad' : ''}">${accuracy === null ? '–' : `${100 - accuracy}%`}</b>${answers ? `<span>${total.wrong} of ${answers}</span>` : ''}</div>
+          <div class="stat-tile"><em>Words learned</em><b class="${total.learned ? 'done' : ''}">${total.learned ? `+${total.learned}` : '–'}</b></div>
         </div>
         ${streak > 1 ? `<div class="bars-top" style="margin:14px 0 0"><span></span><span class="bars-streak">🔥 ${plural(streak, 'day', 'days')} in a row</span></div>` : ''}`
         : `<p class="small ink-2">No practice in this period.</p>`}
