@@ -287,6 +287,15 @@ Statistics screen, which offers 2 weeks / month / 3 months / year / all
 time and folds days into weeks past a month and into months past a season
 (`bucketize()`), because 90 daily bars don't fit a phone.
 
+**`practiced` is distinct per day only — never sum it.** Added up over a
+week or a period it counts a word once for every day it was drilled, which
+is how the Statistics screen used to report more "words practiced" than
+the deck had. Period totals of *words* come from `wordsActiveSince()` in
+`store.js` (a word's latest practice / exam / intro stamp falls inside the
+period, which works because every period ends today); folded rows in the
+breakdown table show active days instead of words. Card counts (`correct +
+wrong`) are the thing that *does* sum, and the UI calls them "cards".
+
 ## The seed.js word-import workflow — read before touching js/seed.js
 
 [js/seed.js](js/seed.js) ships to anyone who loads the app, so as of commit

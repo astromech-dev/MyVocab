@@ -414,6 +414,25 @@ export function recentActivity(n, deckId = store.activeDeckId) {
   return out;
 }
 
+/**
+ * Distinct words this deck has worked on since `since` — the honest "how
+ * many words" for a period, which summing the daily `practiced` tallies
+ * isn't (a word drilled on five days would count five times). Works because
+ * every period ends today: a word whose most recent practice, exam answer
+ * or introduction falls inside the period was worked on in it. A repeat
+ * intro view stamps nothing, so it alone doesn't count.
+ */
+export function wordsActiveSince(since, deckId = store.activeDeckId) {
+  let n = 0;
+  for (const w of store.words) {
+    if (w.deckId !== deckId) continue;
+    const last = Math.max(w.lastPracticed || 0, w.learningStartedAt || 0,
+      w.dirs?.fr?.lastExamAt || 0, w.dirs?.rf?.lastExamAt || 0);
+    if (last >= since) n++;
+  }
+  return n;
+}
+
 /** How many days back this deck's history reaches (today counts as 1), so
  * the stats screen's "all time" period knows how far to draw. */
 export function activitySpan(deckId = store.activeDeckId) {
