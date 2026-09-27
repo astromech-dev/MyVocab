@@ -8,7 +8,7 @@
 //                    demotes the word back to Learning right away.
 
 import { esc, on, shuffle, plural, dayKey } from './dom.js';
-import { getWord, touched, recordActivity, activeDeck } from './store.js';
+import { getWord, touched, recordActivity } from './store.js';
 import { applyAnswer, markIntroduced, learnAgain, applyExamAnswer, isHard, practiceSession, learningPoolLessons, examStats, EXAM_BATCH } from './srs.js';
 
 const sheet = document.getElementById('sheet');
@@ -359,7 +359,6 @@ function renderCarousel() {
   if (!session.current) { renderCarouselDone(); return; }
   const current = session.current;
   const word = getWord(current.wordId);
-  const deck = activeDeck();
 
   const buttons = session.revealed
     ? `<div class="answers">
@@ -376,7 +375,6 @@ function renderCarousel() {
       <span class="tiny muted" style="margin-left:auto">${plural(session.queue.length, 'word', 'words')} in rotation${session.promoted ? ` · ${session.promoted} learned` : ''}${session.doneToday ? ` · ${session.doneToday} done for today` : ''}</span>
     </div>
     <div class="flash">
-      <div class="prompt-kind">${esc(deck.name)}</div>
       <div class="term">${esc(word.term)}</div>
       ${session.revealed ? `
         ${word.transcription ? `<div class="translit">[${esc(word.transcription)}]</div>` : ''}
@@ -428,7 +426,6 @@ function answerExam(answer) {
 function renderExam() {
   if (session.done) { renderExamDone(); return; }
   const word = session.words[session.index];
-  const deck = activeDeck();
   const reverse = session.dir === 'rf';
   const translit = word.transcription ? `<div class="translit">[${esc(word.transcription)}]</div>` : '';
 
@@ -451,7 +448,6 @@ function renderExam() {
   sheet.innerHTML = `<div class="study">
     ${progress(session.index, session.words.length)}
     <div class="flash">
-      <div class="prompt-kind">${esc(deck.name)} exam</div>
       <div class="term">${esc(reverse ? word.translation : word.term)}</div>
       ${session.revealed ? answerSide : (reverse ? '<div class="say">Say the word out loud</div>' : '')}
     </div>

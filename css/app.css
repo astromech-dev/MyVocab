@@ -353,7 +353,6 @@ textarea.input { min-height: 190px; resize: vertical; line-height: 1.6; }
   min-height: 46vh; display: flex; flex-direction: column;
   align-items: center; justify-content: center; text-align: center; gap: 14px;
 }
-.flash .prompt-kind { font-size: 13px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
 .flash .term {
   font-size: clamp(30px, 7.4vw, 46px); font-weight: 620; letter-spacing: -.025em;
   line-height: 1.15; overflow-wrap: anywhere;
