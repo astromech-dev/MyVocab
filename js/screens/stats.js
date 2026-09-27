@@ -1,12 +1,12 @@
 // Statistics — the activity history on its own screen, over longer periods
-// than the overview's strip: cards answered (right / wrong), accuracy, and
+// than the overview's strip: answers (right / wrong), accuracy, and
 // words learned.
 //
 // "Words" is only ever a count of *distinct* words. The daily `practiced`
 // tally is distinct per day, so it's fine on a single day's row, but summed
 // over a week or a period it counts a word once per day it was drilled — so
-// period totals come from `wordsActiveSince()` and folded rows show active
-// days instead.
+// period totals come from `wordsActiveSince()` and folded rows show no
+// word count at all.
 
 import { esc, on, plural } from '../dom.js';
 import { recentActivity, currentStreak, activitySpan, wordsActiveSince } from '../store.js';
@@ -14,7 +14,7 @@ import { recentActivity, currentStreak, activitySpan, wordsActiveSince } from '.
 const PERIODS = [
   ['14', '2 weeks'], ['30', 'Month'], ['90', '3 months'], ['365', 'Year'], ['all', 'All time'],
 ];
-const MODES = [['answers', 'Cards'], ['accuracy', 'Accuracy'], ['learned', 'Learned']];
+const MODES = [['answers', 'Answers'], ['accuracy', 'Accuracy'], ['learned', 'Learned']];
 
 // Kept between renders so the chosen period survives a re-render (an answer
 // recorded elsewhere, a deck switch).
@@ -64,14 +64,10 @@ function fold(list, label) {
 
 const pct = (part, whole) => (whole ? Math.round((part / whole) * 100) : null);
 
-const activeIn = (b) => b.days.filter((d) => d.practiced).length;
-
 function tooltip(b) {
   const answers = b.correct + b.wrong;
-  const parts = [b.days.length === 1
-    ? plural(b.practiced, 'word', 'words')
-    : `${activeIn(b)} of ${plural(b.days.length, 'day', 'days')} active`];
-  if (answers) parts.push(`${plural(answers, 'card', 'cards')}: ${b.correct} right, ${b.wrong} wrong (${pct(b.correct, answers)}%)`);
+  const parts = b.days.length === 1 ? [plural(b.practiced, 'word', 'words')] : [];
+  if (answers) parts.push(`${plural(answers, 'answer', 'answers')}: ${b.correct} right, ${b.wrong} wrong (${pct(b.correct, answers)}%)`);
   if (b.learned) parts.push(`${b.learned} learned`);
   return `${b.label}: ${parts.join(' · ')}`;
 }
@@ -109,9 +105,9 @@ function table(buckets) {
     <table class="stat-table">
       <thead><tr>
         <th>${daily ? 'Day' : 'Period'}</th>
-        ${daily ? '<th title="Different words practiced that day">Words</th>' : '<th title="Days with any practice">Days</th>'}
-        <th title="Cards answered">Cards</th>
-        <th title="Share of cards answered right">Right</th>
+        ${daily ? '<th title="Words practiced that day">Words</th>' : ''}
+        <th title="Cards answered, repeats included">Answers</th>
+        <th title="Share of answers that were right">Right</th>
         <th title="Words that became Learned">Learned</th>
       </tr></thead>
       <tbody>${rows.map((b) => {
@@ -119,7 +115,7 @@ function table(buckets) {
         const acc = pct(b.correct, answers);
         return `<tr>
           <td>${esc(b.label)}</td>
-          <td>${daily ? b.practiced : `${activeIn(b)}<span class="muted">/${b.days.length}</span>`}</td>
+          ${daily ? `<td>${b.practiced}</td>` : ''}
           <td>${answers || dash}</td>
           <td>${acc === null ? dash : `<span class="ok">${acc}%</span>`}</td>
           <td>${b.learned ? `<span class="done">+${b.learned}</span>` : dash}</td>
@@ -136,9 +132,7 @@ export function renderStats(root, rerender, goBack) {
   const total = fold(days, '');
   const answers = total.correct + total.wrong;
   const accuracy = pct(total.correct, answers);
-  const activeDays = days.filter((d) => d.practiced).length;
   const words = wordsActiveSince(new Date(days[0].key + 'T00:00:00').getTime());
-  const perDay = activeDays ? Math.round(answers / activeDays) : 0;
   const streak = currentStreak();
   // Days practiced before answers were recorded: words only, no breakdown.
   const unsplit = days.some((d) => d.practiced && !d.correct && !d.wrong);
@@ -153,16 +147,12 @@ export function renderStats(root, rerender, goBack) {
 
     <div class="card" style="margin-top:14px">
       ${total.practiced ? `
-        <div class="stat-tiles">
-          <div class="stat-tile"><b>${activeDays}<small class="muted" style="font-size:15px;font-weight:500">/${n}</small></b><span>days practiced</span></div>
-          <div class="stat-tile"><b>${words}</b><span>${words === 1 ? 'word' : 'different words'}</span></div>
-          <div class="stat-tile"><b class="${accuracy === null ? '' : 'ok'}">${accuracy === null ? '–' : `${accuracy}%`}</b><span>${answers ? `${total.correct} of ${answers} right` : 'right'}</span></div>
+        <div class="stat-tiles stat-tiles-3">
+          <div class="stat-tile"><b>${words}</b><span>${words === 1 ? 'word' : 'words'} practiced</span></div>
+          <div class="stat-tile"><b class="${accuracy === null ? '' : 'ok'}">${accuracy === null ? '–' : `${accuracy}%`}</b><span>right answers</span>${answers ? `<span>${total.correct} of ${answers}</span>` : ''}</div>
           <div class="stat-tile"><b class="${total.learned ? 'done' : ''}">${total.learned ? `+${total.learned}` : '–'}</b><span>words learned</span></div>
         </div>
-        <div class="bars-top" style="margin:14px 0 0">
-          <span>${answers ? `${plural(answers, 'card', 'cards')} answered${activeDays > 1 ? ` · about ${perDay} a day` : ''}` : ''}</span>
-          ${streak > 1 ? `<span class="bars-streak">🔥 ${plural(streak, 'day', 'days')} in a row</span>` : ''}
-        </div>`
+        ${streak > 1 ? `<div class="bars-top" style="margin:14px 0 0"><span></span><span class="bars-streak">🔥 ${plural(streak, 'day', 'days')} in a row</span></div>` : ''}`
         : `<p class="small ink-2">No practice in this period.</p>`}
     </div>
 
@@ -177,11 +167,11 @@ export function renderStats(root, rerender, goBack) {
         <div class="item"><span class="swatch" style="background:var(--red)"></span>Wrong</div>
       </div>` : ''}
       <p class="tiny muted" style="margin-top:12px">${view.mode === 'answers'
-        ? 'Every card you answered in Practice or Exam, including repeats of the same word.'
+        ? 'Each time you answered a card in Practice or Exam. The same word can be answered several times a day.'
         : view.mode === 'accuracy'
-          ? 'Share of cards you answered right.'
+          ? 'Share of answers that were right.'
           : 'Words that reached Learned.'}</p>
-      ${unsplit ? `<p class="tiny muted" style="margin-top:6px">Right and wrong answers are counted from the day this was added; earlier days have no cards.</p>` : ''}
+      ${unsplit ? `<p class="tiny muted" style="margin-top:6px">Right and wrong answers are counted from the day this was added; earlier days have none.</p>` : ''}
     </div>
 
     ${total.practiced ? `<p class="section-title">Breakdown</p>
