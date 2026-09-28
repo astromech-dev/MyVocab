@@ -329,14 +329,21 @@ Shared by `+ Add words` and `seed.js` lessons, parsed by
   ends the current entry early. For lists pasted with every field on its own
   line.
 
-**Open a file** in the paste step reads `.xlsx` / `.csv` / `.tsv` / `.txt`
+**Upload a spreadsheet** in the paste step (or dragging a file onto the
+textarea, or pasting a file copied in Finder) reads `.xlsx` / `.csv` / `.tsv` / `.txt`
 via [js/sheetfile.js](js/sheetfile.js) (xlsx unzipped with the browser's
 `DecompressionStream`, first sheet only, no library; CSV delimiter guessed
 because Russian-locale Excel writes `;`) and drops the result into the
 textarea as tab-separated text, so it takes the spreadsheet-paste path above.
 Binary `.xls` is refused with a "save as .xlsx or .csv" toast.
 
+- **`mode: 'auto'`** — `detectMode()` picks one of the above from the text
+  (tab or separators on half the lines → columns; blank-line blocks, or every
+  third line `[ipa]`/`/ipa/` → rows3; else rows2).
+
 The `+ Add words` paste step ([js/screens/addwords.js](js/screens/addwords.js))
-exposes `mode` as a dropdown and shows a live "N words detected" readout under
-the textarea so a mis-parsed paste is obvious before the preview step. `seed.js`
+always uses `auto` — there is deliberately no "how is your list laid out?"
+selector any more; the preview step is where a wrong guess gets fixed. It
+shows a live "✓ N words found" readout under the textarea so a mis-parsed
+paste is obvious before the preview step. `seed.js`
 and `packs.js` always call it with the default `columns` mode.

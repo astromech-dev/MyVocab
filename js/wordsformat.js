@@ -15,10 +15,14 @@
 // mode "rows2" / "rows3": each entry spans 2 or 3 consecutive non-blank lines
 //   (term, then translation, then pronunciation). A blank line ends the current
 //   entry early. For lists pasted with every field on its own line.
+//
+// mode "auto": pick one of the above from the text itself (detectMode), so
+//   the "+ Add words" sheet needs no "how is your list laid out?" question.
 
 const FIELD_SEP = /\s*\|\s*|\t+|\s*;\s*|\s{2,}|\s+[-–—]\s+/;
 
 export function parseWordLines(text, mode = 'columns') {
+  if (mode === 'auto') mode = detectMode(text);
   const lines = String(text).split(/\r?\n/);
 
   if (mode === 'rows2' || mode === 'rows3') {
@@ -43,6 +47,29 @@ export function parseWordLines(text, mode = 'columns') {
     if (!raw) return null;
     return rowFrom(raw.split(FIELD_SEP));
   }).filter((row) => row && row.term);
+}
+
+const PRON = /^(\[.*\]|\/.*\/)$/;
+
+/** Guesses the layout of a pasted list:
+ *  - a tab, or separators on at least half the lines → "columns";
+ *  - blank lines between short blocks → "rows3" (a 2-line block still ends
+ *    at its blank line, so this covers word+translation blocks too);
+ *  - one unbroken run where every third line is [ipa] or /ipa/ → "rows3";
+ *  - otherwise alternating lines → "rows2". */
+export function detectMode(text) {
+  const src = String(text);
+  if (src.includes('\t')) return 'columns';
+  const lines = src.split(/\r?\n/).map((l) => l.trim());
+  const filled = lines.filter(Boolean);
+  if (filled.length < 2) return 'columns';
+  const split = filled.filter((l) => l.split(FIELD_SEP).length > 1).length;
+  if (split * 2 >= filled.length) return 'columns';
+
+  const blocks = src.trim().split(/\r?\n\s*\r?\n/).map((b) => b.split(/\r?\n/).filter((l) => l.trim()).length);
+  if (blocks.length > 1 && Math.max(...blocks) <= 3) return 'rows3';
+  if (filled.length % 3 === 0 && filled.every((l, i) => i % 3 !== 2 || PRON.test(l))) return 'rows3';
+  return 'rows2';
 }
 
 function rowFrom(parts) {

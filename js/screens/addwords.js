@@ -14,32 +14,20 @@ const sheet = document.getElementById('sheet');
 const inner = () => sheet.firstElementChild;
 let draft = null;          // null = paste step, array = preview step
 let lessonName = '';
-let parseMode = 'columns'; // how to read the pasted text — see js/wordsformat.js
 let afterAdd = () => {};
 let packView = null;       // a pack object = showing its read-only preview step
 
-const EXAMPLES = {
-  columns: `word or phrase | translation | pronunciation
+// The layout is detected from the text (mode "auto" in js/wordsformat.js),
+// so the placeholder only needs to show the simplest shape.
+const EXAMPLE = `word | translation | pronunciation
 another word | its translation
-a short phrase | its translation`,
-  rows2: `word or phrase
-translation
-
-another word
-its translation`,
-  rows3: `word or phrase
-translation
-pronunciation
-
-another word
-its translation
-pronunciation`,
-};
+a short phrase | its translation`;
+const ACCEPT = '.xlsx,.csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain,'
+  + 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 export function openAddWords(onDone = () => {}) {
   draft = null;
   lessonName = '';
-  parseMode = 'columns';
   packView = null;
   afterAdd = onDone;
   show();
@@ -71,26 +59,18 @@ function renderPaste() {
     </div>
 
     <label class="field">
-      <span>How is your list laid out?</span>
-      <select class="input" id="parse-mode">
-        <option value="columns" ${parseMode === 'columns' ? 'selected' : ''}>All on one line — word, translation, pronunciation</option>
-        <option value="rows2" ${parseMode === 'rows2' ? 'selected' : ''}>Word and translation on separate lines</option>
-        <option value="rows3" ${parseMode === 'rows3' ? 'selected' : ''}>Word, translation, pronunciation on separate lines</option>
-      </select>
-    </label>
-
-    <label class="field">
-      <span>Paste your words</span>
+      <span>Your words</span>
       <textarea class="input" id="paste" spellcheck="false"
-        placeholder="${esc(EXAMPLES[parseMode])}"></textarea>
+        placeholder="${esc(EXAMPLE)}"></textarea>
     </label>
-    <p class="hint" id="parse-hint">${modeHint()}</p>
-    <p class="hint" id="parse-count" aria-live="polite"></p>
-    <p class="hint">
-      <button class="btn btn-quiet" type="button" data-act="file" style="padding:6px 0">📄 Or open a file — Excel, Google Sheets, CSV</button>
-      <input type="file" id="sheet-file" hidden
-        accept=".xlsx,.csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-    </p>
+    <p class="hint">One word per line: the word, its translation and, if you like, the pronunciation.
+      You can also copy rows straight from Excel or Google Sheets and paste them here.</p>
+    <div class="file-pick">
+      <button class="btn btn-ghost" type="button" data-act="file"><span aria-hidden="true">📄</span>Upload a spreadsheet</button>
+      <span class="hint">.xlsx or .csv — or drag the file onto the box</span>
+      <input type="file" id="sheet-file" hidden accept="${ACCEPT}">
+    </div>
+    <p class="hint parse-count" id="parse-count" aria-live="polite"></p>
 
     <label class="field">
       <span>Lesson (optional)</span>
@@ -116,13 +96,6 @@ function renderPaste() {
     newField.hidden = el.value !== '__new__';
     if (!newField.hidden) newField.focus();
   });
-  on(inner(), '#parse-mode', 'change', (el) => {
-    parseMode = el.value;
-    const box = qs(sheet, '#paste');
-    box.placeholder = EXAMPLES[parseMode];
-    qs(sheet, '#parse-hint').textContent = modeHint();
-    updateCount();
-  });
   on(inner(), '#paste', 'input', updateCount);
   on(inner(), '[data-act="file"]', 'click', () => qs(sheet, '#sheet-file').click());
   on(inner(), '#sheet-file', 'change', (el) => {
@@ -130,10 +103,32 @@ function renderPaste() {
     el.value = '';
     if (file) loadFile(file);
   });
+  // A spreadsheet dragged onto the box, or copied in Finder and pasted, is
+  // read as a file; plain text paste falls through to the textarea as usual.
+  const box = qs(sheet, '#paste');
+  box.addEventListener('dragover', (e) => {
+    if (![...e.dataTransfer.types].includes('Files')) return;
+    e.preventDefault();
+    box.classList.add('is-drop');
+  });
+  box.addEventListener('dragleave', () => box.classList.remove('is-drop'));
+  box.addEventListener('drop', (e) => {
+    box.classList.remove('is-drop');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    e.preventDefault();
+    loadFile(file);
+  });
+  box.addEventListener('paste', (e) => {
+    const file = e.clipboardData?.files[0];
+    if (!file || file.type.startsWith('image/')) return;
+    e.preventDefault();
+    loadFile(file);
+  });
   on(inner(), '[data-act="preview"]', 'click', () => {
     const picked = qs(sheet, '#lesson-select').value;
     lessonName = picked === '__new__' ? qs(sheet, '#lesson-new').value.trim() : picked;
-    const rows = parseWordLines(qs(sheet, '#paste').value, parseMode);
+    const rows = parseWordLines(qs(sheet, '#paste').value, 'auto');
     if (!rows.length) { toast('Paste some words first'); return; }
     draft = rows;
     renderPreview();
@@ -163,22 +158,9 @@ async function loadFile(file) {
   }
   const quote = (c) => (/[\t\n\r"]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c);
   const text = table.map((r) => r.map((c) => quote(String(c ?? ''))).join('\t')).join('\n');
-  parseMode = 'columns';
-  qs(sheet, '#parse-mode').value = 'columns';
-  qs(sheet, '#parse-hint').textContent = modeHint();
   qs(sheet, '#paste').value = text;
   updateCount();
-  if (!parseWordLines(text, parseMode).length) toast('No words found in that file');
-}
-
-function modeHint() {
-  if (parseMode === 'rows2') {
-    return 'Each word takes two lines: the word, then its translation. Leave a blank line between entries if a translation runs long.';
-  }
-  if (parseMode === 'rows3') {
-    return 'Each word takes three lines: word, translation, pronunciation.';
-  }
-  return 'One word per line. Separate the parts with “|”, a tab, a semicolon, a dash, or two or more spaces. Pronunciation is optional. Cells copied from Excel or Google Sheets paste as they are.';
+  if (!parseWordLines(text, 'auto').length) toast('No words found in that file');
 }
 
 /** Live "N words detected" readout under the textarea, so a paste that didn't
@@ -186,12 +168,12 @@ function modeHint() {
 function updateCount() {
   const out = qs(sheet, '#parse-count');
   if (!out) return;
-  const rows = parseWordLines(qs(sheet, '#paste').value, parseMode);
+  const rows = parseWordLines(qs(sheet, '#paste').value, 'auto');
   if (!rows.length) { out.textContent = ''; return; }
   const missing = rows.filter((r) => !r.translation).length;
   const first = rows[0];
   const peek = first.translation ? `${first.term} → ${first.translation}` : first.term;
-  out.textContent = `${rows.length} word${rows.length === 1 ? '' : 's'} detected — first: ${peek}`
+  out.textContent = `✓ ${rows.length} word${rows.length === 1 ? '' : 's'} found — first: ${peek}`
     + (missing ? ` · ${missing} without a translation` : '');
 }
 
