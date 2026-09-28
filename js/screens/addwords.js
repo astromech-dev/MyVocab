@@ -3,6 +3,7 @@
 import { esc, on, qs, qsa, toast } from '../dom.js';
 import { store, addWords, lessons, activeDeck } from '../store.js';
 import { parseWordLines } from '../wordsformat.js';
+import { readSheetFile } from '../sheetfile.js';
 import { packsFor, getPack } from '../packs.js';
 import { langName } from '../languages.js';
 
@@ -85,6 +86,11 @@ function renderPaste() {
     </label>
     <p class="hint" id="parse-hint">${modeHint()}</p>
     <p class="hint" id="parse-count" aria-live="polite"></p>
+    <p class="hint">
+      <button class="btn btn-quiet" type="button" data-act="file" style="padding:6px 0">📄 Or open a file — Excel, Google Sheets, CSV</button>
+      <input type="file" id="sheet-file" hidden
+        accept=".xlsx,.csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+    </p>
 
     <label class="field">
       <span>Lesson (optional)</span>
@@ -118,6 +124,12 @@ function renderPaste() {
     updateCount();
   });
   on(inner(), '#paste', 'input', updateCount);
+  on(inner(), '[data-act="file"]', 'click', () => qs(sheet, '#sheet-file').click());
+  on(inner(), '#sheet-file', 'change', (el) => {
+    const file = el.files[0];
+    el.value = '';
+    if (file) loadFile(file);
+  });
   on(inner(), '[data-act="preview"]', 'click', () => {
     const picked = qs(sheet, '#lesson-select').value;
     lessonName = picked === '__new__' ? qs(sheet, '#lesson-new').value.trim() : picked;
@@ -136,6 +148,29 @@ function renderPaste() {
   updateCount();
 }
 
+/** A picked file lands in the textarea as tab-separated text — the same
+ * thing a copy from a spreadsheet produces — so the live count, the preview
+ * and the header/column handling are all the paste path's. */
+async function loadFile(file) {
+  let table;
+  try {
+    table = await readSheetFile(file);
+  } catch (err) {
+    toast(err.message === 'xls'
+      ? 'Old .xls files can’t be read — save it as .xlsx or .csv'
+      : 'Couldn’t read that file');
+    return;
+  }
+  const quote = (c) => (/[\t\n\r"]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c);
+  const text = table.map((r) => r.map((c) => quote(String(c ?? ''))).join('\t')).join('\n');
+  parseMode = 'columns';
+  qs(sheet, '#parse-mode').value = 'columns';
+  qs(sheet, '#parse-hint').textContent = modeHint();
+  qs(sheet, '#paste').value = text;
+  updateCount();
+  if (!parseWordLines(text, parseMode).length) toast('No words found in that file');
+}
+
 function modeHint() {
   if (parseMode === 'rows2') {
     return 'Each word takes two lines: the word, then its translation. Leave a blank line between entries if a translation runs long.';
@@ -143,7 +178,7 @@ function modeHint() {
   if (parseMode === 'rows3') {
     return 'Each word takes three lines: word, translation, pronunciation.';
   }
-  return 'One word per line. Separate the parts with “|”, a tab, a semicolon, a dash, or two or more spaces. Pronunciation is optional.';
+  return 'One word per line. Separate the parts with “|”, a tab, a semicolon, a dash, or two or more spaces. Pronunciation is optional. Cells copied from Excel or Google Sheets paste as they are.';
 }
 
 /** Live "N words detected" readout under the textarea, so a paste that didn't

@@ -317,10 +317,24 @@ Shared by `+ Add words` and `seed.js` lessons, parsed by
   `|`, a tab, `;`, a run of **2+ spaces**, or a **spaced dash** (`-` `–` `—`).
   Pronunciation optional. A single space is *not* a separator (terms are
   often multi-word).
+- **Spreadsheet paste** — in `columns` mode, text containing a tab is a copy
+  from Excel / Google Sheets / Numbers and goes through `parseTable()` +
+  `tableToWords()` instead: tab is the *only* separator (so `;` or ` - `
+  inside a cell stays put), empty cells keep their column, quoted cells may
+  hold line breaks, all-empty columns are dropped, and a header row
+  (`Word` / `Перевод` / `Pronunciation`…, see `HEADERS`) is skipped and
+  decides which column is which.
 - **`mode: 'rows2'` / `'rows3'`** — each entry spans 2 or 3 consecutive
   non-blank lines (term, then translation, then pronunciation); a blank line
   ends the current entry early. For lists pasted with every field on its own
   line.
+
+**Open a file** in the paste step reads `.xlsx` / `.csv` / `.tsv` / `.txt`
+via [js/sheetfile.js](js/sheetfile.js) (xlsx unzipped with the browser's
+`DecompressionStream`, first sheet only, no library; CSV delimiter guessed
+because Russian-locale Excel writes `;`) and drops the result into the
+textarea as tab-separated text, so it takes the spreadsheet-paste path above.
+Binary `.xls` is refused with a "save as .xlsx or .csv" toast.
 
 The `+ Add words` paste step ([js/screens/addwords.js](js/screens/addwords.js))
 exposes `mode` as a dropdown and shows a live "N words detected" readout under
